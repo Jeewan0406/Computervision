@@ -1,0 +1,38 @@
+{
+  "name": "jeea",
+  "private": true,
+  "version": "1.0.0",
+  "description": "JeeA! \u2014 one beautiful chat for many AI models: free models, your own API keys, side-by-side compare, multi-role teams and a live CodeFrame.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --no-warnings --test tests/logic.test.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.12.0",
+    "@codemirror/lang-html": "^6.4.12",
+    "@codemirror/state": "^6.7.6",
+    "@codemirror/theme-one-dark": "^6.1.3",
+    "@codemirror/view": "^6.43.15",
+    "codemirror": "^6.0.2",
+    "dompurify": "^3.4.18",
+    "highlight.js": "^11.12.0",
+    "idb-keyval": "^6.3.0",
+    "immer": "^11.2.10",
+    "lucide-react": "^1.77.0",
+    "marked": "^18.2.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zustand": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.8"
+  }
+}

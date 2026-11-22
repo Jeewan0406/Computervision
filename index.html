@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en" data-theme="dark" data-accent="violet">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>JeeA! — Many AIs. One place.</title>
+    <meta name="description" content="JeeA! is a free chat app for many AI models: free models, your own API keys, side-by-side compare, multi-role AI teams and a live CodeFrame." />
+    <meta name="theme-color" content="#0b0d14" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="apple-touch-icon" href="./icon-192.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta property="og:title" content="JeeA! — Many AIs. One place." />
+    <meta property="og:description" content="Chat, compare and team up many AI models in one beautiful interface." />
+    <script>
+      // Apply the saved theme before first paint to avoid a flash.
+      try {
+        var s = JSON.parse(localStorage.getItem('jeea.settings') || '{}').state || {};
+        var t = s.theme || 'dark';
+        if (t === 'system') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = t;
+        document.documentElement.dataset.accent = s.accent || 'violet';
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <noscript>JeeA! needs JavaScript to run.</noscript>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

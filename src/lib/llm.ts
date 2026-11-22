@@ -1,0 +1,299 @@
+import type { GenParams, ProviderDef, Slot } from './types';
+import { createSSEParser, parseRetryAfter } from './sse';
+
+export interface ChatMsg {
+  role: 'system' | 'user' | 'assistant';
+  content: string;
+}
+
+export interface StreamHandlers {
+  onText: (delta: string) => void;
+  onReasoning?: (delta: string) => void;
+}
+
+export interface CallResult {
+  content: string;
+  reasoning: string;
+  tokensIn?: number;
+  tokensOut?: number;
+  finishReason?: string;
+}
+
+/** An HTTP or network failure, classified so the runner knows what to do. */
+export class LLMError extends Error {
+  status?: number;
+  retryAfterMs?: number;
+  network: boolean;
+  constructor(message: string, opts: { status?: number; retryAfterMs?: number; network?: boolean } = {}) {
+    super(message);
+    this.name = 'LLMError';
+    this.status = opts.status;
+    this.retryAfterMs = opts.retryAfterMs;
+    this.network = !!opts.network;
+  }
+}
+
+export interface CallTarget {
+  provider: ProviderDef;
+  slot: Pick<Slot, 'apiKey' | 'baseUrl'> & { useProxy?: boolean };
+  model: string;
+  corsProxy: string;
+}
+
+const trimSlash = (u: string) => u.replace(/\/+$/, '');
+
+function baseOf(t: CallTarget) {
+  return trimSlash(t.slot.baseUrl || t.provider.baseUrl);
+}
+
+/** Prefix-style CORS proxy: `${proxy}${targetUrl}` (see proxy/cloudflare-worker.js). */
+function viaProxy(url: string, t: CallTarget) {
+  if (t.slot.useProxy && t.corsProxy) return `${t.corsProxy}${url}`;
+  return url;
+}
+
+function headersFor(t: CallTarget): Record<string, string> {
+  const h: Record<string, string> = { 'Content-Type': 'application/json', ...(t.provider.headers ?? {}) };
+  if (t.slot.apiKey) h.Authorization = `Bearer ${t.slot.apiKey}`;
+  if (t.provider.id === 'openrouter') h['HTTP-Referer'] = location.origin + location.pathname;
+  return h;
+}
+
+async function errorFrom(res: Response): Promise<LLMError> {
+  let msg = `${res.status} ${res.statusText}`.trim();
+  try {
+    const text = await res.text();
+    try {
+      const j = JSON.parse(text);
+      const m = j?.error?.message ?? j?.error?.metadata?.raw ?? j?.message ?? j?.detail ?? (typeof j?.error === 'string' ? j.error : undefined);
+      if (m) msg = `${res.status}: ${typeof m === 'string' ? m : JSON.stringify(m)}`;
+    } catch {
+      if (text) msg = `${res.status}: ${text.slice(0, 300)}`;
+    }
+  } catch {
+    /* body unreadable */
+  }
+  return new LLMError(msg, { status: res.status, retryAfterMs: parseRetryAfter(res.headers.get('retry-after')) });
+}
+
+async function doFetch(url: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(url, init);
+  } catch (e) {
+    if ((e as Error)?.name === 'AbortError') throw e;
+    // Browsers report CORS blocks, DNS failures and offline as the same TypeError.
+    throw new LLMError(
+      'Network error: the provider could not be reached from the browser (offline, wrong URL, or the API blocks browser calls — try the CORS proxy setting).',
+      { network: true },
+    );
+  }
+}
+
+// ---------------------------------------------------------------- OpenAI style
+
+export async function streamOpenAI(
+  t: CallTarget,
+  messages: ChatMsg[],
+  params: GenParams,
+  signal: AbortSignal,
+  h: StreamHandlers,
+): Promise<CallResult> {
+  const body: Record<string, unknown> = { model: t.model, messages, stream: true };
+  // Only send what the user explicitly set: some models reject custom sampling values.
+  if (params.temperature != null) body.temperature = params.temperature;
+  if (params.topP != null) body.top_p = params.topP;
+  if (params.maxTokens) body[t.provider.id === 'openai' ? 'max_completion_tokens' : 'max_tokens'] = params.maxTokens;
+  if (t.provider.streamUsage) body.stream_options = { include_usage: true };
+
+  const url = viaProxy(`${baseOf(t)}${t.provider.access === 'keyless' ? '/openai' : '/chat/completions'}`, t);
+  const res = await doFetch(url, { method: 'POST', headers: headersFor(t), body: JSON.stringify(body), signal });
+  if (!res.ok) throw await errorFrom(res);
+
+  const out: CallResult = { content: '', reasoning: '' };
+  const ctype = res.headers.get('content-type') ?? '';
+
+  if (!ctype.includes('text/event-stream') || !res.body) {
+    // Non-streaming fallback (some gateways ignore `stream: true`).
+    const text = await res.text();
+    try {
+      const j = JSON.parse(text);
+      const msg = j?.choices?.[0]?.message ?? {};
+      out.content = msg.content ?? '';
+      out.reasoning = msg.reasoning_content ?? msg.reasoning ?? '';
+      out.tokensIn = j?.usage?.prompt_tokens;
+      out.tokensOut = j?.usage?.completion_tokens;
+      out.finishReason = j?.choices?.[0]?.finish_reason;
+    } catch {
+      out.content = text;
+    }
+    if (out.reasoning) h.onReasoning?.(out.reasoning);
+    if (out.content) h.onText(out.content);
+    return out;
+  }
+
+  let streamError: LLMError | null = null;
+  const parser = createSSEParser((data) => {
+    if (!data || data === '[DONE]') return;
+    let j: any; // eslint-disable-line @typescript-eslint/no-explicit-any
+    try {
+      j = JSON.parse(data);
+    } catch {
+      return;
+    }
+    if (j?.error) {
+      streamError = new LLMError(String(j.error.message ?? JSON.stringify(j.error)), { status: Number(j.error.code) || undefined });
+      return;
+    }
+    const choice = j?.choices?.[0];
+    const delta = choice?.delta ?? {};
+    const r = delta.reasoning_content ?? delta.reasoning;
+    if (typeof r === 'string' && r) {
+      out.reasoning += r;
+      h.onReasoning?.(r);
+    }
+    if (typeof delta.content === 'string' && delta.content) {
+      out.content += delta.content;
+      h.onText(delta.content);
+    }
+    if (choice?.finish_reason) out.finishReason = choice.finish_reason;
+    if (j?.usage) {
+      out.tokensIn = j.usage.prompt_tokens ?? out.tokensIn;
+      out.tokensOut = j.usage.completion_tokens ?? out.tokensOut;
+    }
+  });
+
+  const reader = res.body.getReader();
+  const dec = new TextDecoder();
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      parser.push(dec.decode(value, { stream: true }));
+      if (streamError) throw streamError;
+    }
+    parser.flush();
+  } finally {
+    reader.releaseLock();
+  }
+  if (streamError) throw streamError;
+  return out;
+}
+
+// ------------------------------------------------------------------ Anthropic
+
+/** Claude models that take adaptive thinking (Claude 5 family and 4.6+). */
+const ADAPTIVE = /claude-(opus|sonnet|haiku|fable|mythos)-(5|4-[6-9])/;
+
+export async function streamAnthropic(
+  t: CallTarget,
+  messages: ChatMsg[],
+  params: GenParams,
+  signal: AbortSignal,
+  h: StreamHandlers,
+): Promise<CallResult> {
+  // Loaded on demand so people who never use Claude don't download the SDK.
+  const { default: Anthropic } = await import('@anthropic-ai/sdk');
+  const client = new Anthropic({
+    apiKey: t.slot.apiKey,
+    baseURL: viaProxy(baseOf(t), t),
+    dangerouslyAllowBrowser: true, // keys belong to the user and stay in their browser
+    maxRetries: 0, // JeeA!'s runner handles retries and key rotation
+  });
+
+  const system = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n');
+  const convo = messages
+    .filter((m) => m.role !== 'system')
+    .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+  if (convo[0]?.role === 'assistant') convo.unshift({ role: 'user', content: '(continue)' });
+
+  // Note: the SDK's API version rejects temperature/top_p, so they are not sent.
+  const req = {
+    model: t.model,
+    max_tokens: params.maxTokens ?? 32000,
+    messages: convo,
+    ...(system ? { system } : {}),
+    ...(ADAPTIVE.test(t.model) ? { thinking: { type: 'adaptive' as const, display: 'summarized' as const } } : {}),
+  };
+
+  const out: CallResult = { content: '', reasoning: '' };
+  try {
+    const stream = client.messages.stream(req as Parameters<typeof client.messages.stream>[0], { signal });
+    for await (const ev of stream) {
+      if (ev.type === 'content_block_delta') {
+        const d = ev.delta as { type: string; text?: string; thinking?: string };
+        if (d.type === 'text_delta' && d.text) {
+          out.content += d.text;
+          h.onText(d.text);
+        } else if (d.type === 'thinking_delta' && d.thinking) {
+          out.reasoning += d.thinking;
+          h.onReasoning?.(d.thinking);
+        }
+      }
+    }
+    const final = await stream.finalMessage();
+    out.tokensIn = final.usage?.input_tokens;
+    out.tokensOut = final.usage?.output_tokens;
+    out.finishReason = final.stop_reason ?? undefined;
+    if (final.stop_reason === 'refusal') {
+      const note = '\n\n> The model declined this request.';
+      out.content += note;
+      h.onText(note);
+    }
+    return out;
+  } catch (e) {
+    if (e instanceof Anthropic.APIUserAbortError) throw new DOMException('Aborted', 'AbortError');
+    if (e instanceof Anthropic.APIConnectionError) {
+      throw new LLMError('Network error: could not reach the Anthropic API from the browser.', { network: true });
+    }
+    if (e instanceof Anthropic.APIError) {
+      const ra = e.headers?.get?.('retry-after') ?? null;
+      throw new LLMError(`${e.status ?? ''}: ${e.message}`.replace(/^: /, ''), {
+        status: e.status,
+        retryAfterMs: parseRetryAfter(ra),
+      });
+    }
+    throw e;
+  }
+}
+
+// --------------------------------------------------------------- model lists
+
+export async function listModels(t: Omit<CallTarget, 'model'>, signal?: AbortSignal): Promise<string[]> {
+  const target = { ...t, model: '' } as CallTarget;
+  if (t.provider.kind === 'anthropic') {
+    const { default: Anthropic } = await import('@anthropic-ai/sdk');
+    const client = new Anthropic({
+      apiKey: t.slot.apiKey,
+      baseURL: viaProxy(baseOf(target), target),
+      dangerouslyAllowBrowser: true,
+      maxRetries: 0,
+    });
+    const ids: string[] = [];
+    try {
+      for await (const m of client.models.list({ limit: 100 }, { signal })) ids.push(m.id);
+    } catch (e) {
+      if (e instanceof Anthropic.APIError) throw new LLMError(`${e.status ?? ''}: ${e.message}`, { status: e.status });
+      throw e;
+    }
+    return ids;
+  }
+
+  let url = `${baseOf(target)}/models`;
+  if (t.provider.id === 'github') url = 'https://models.github.ai/catalog/models';
+  const res = await doFetch(viaProxy(url, target), {
+    headers: t.slot.apiKey ? { Authorization: `Bearer ${t.slot.apiKey}` } : {},
+    signal,
+  });
+  if (!res.ok) throw await errorFrom(res);
+  const j = await res.json();
+  const arr: unknown[] = Array.isArray(j) ? j : Array.isArray(j?.data) ? j.data : Array.isArray(j?.models) ? j.models : [];
+  let ids = arr
+    .map((m) => (typeof m === 'string' ? m : (m as { id?: string; name?: string })?.id ?? (m as { name?: string })?.name))
+    .filter((x): x is string => typeof x === 'string' && !!x)
+    .map((id) => id.replace(/^models\//, ''));
+  // Hide obvious non-chat models (embeddings, speech, image, moderation).
+  ids = ids.filter((id) => !/embed|whisper|tts|dall-e|moderation|rerank|transcribe|imagen|veo|aqa/i.test(id));
+  // Put free OpenRouter models first.
+  ids.sort((a, b) => Number(b.endsWith(':free')) - Number(a.endsWith(':free')) || a.localeCompare(b));
+  return [...new Set(ids)];
+}
