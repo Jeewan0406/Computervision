@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Code2, Columns3, Download, KeyRound, Users } from 'lucide-react';
+import { Bot, Code2, Columns3, Download, KeyRound, Users } from 'lucide-react';
 import type { ChatSession, Message, ModelRef } from '../lib/types';
 import { useData } from '../lib/data';
 import { useSettings, getProvider, isUsable, modelLabel } from '../lib/settings';
@@ -79,6 +79,7 @@ function Welcome({ model, onPick }: { model: ModelRef; onPick: (text: string) =>
         ))}
       </div>
       <div className="feature-row">
+        <button className="feature" onClick={() => setView('agent')}><Bot size={18} /><span><b>Agent</b>: tools, steps and 24/7 runs</span></button>
         <button className="feature" onClick={() => setView('compare')}><Columns3 size={18} /><span><b>Compare</b> up to 6 models side by side</span></button>
         <button className="feature" onClick={() => setView('team')}><Users size={18} /><span><b>Team</b>: give each model a role</span></button>
         <button className="feature" onClick={() => setView('code')}><Code2 size={18} /><span><b>CodeFrame</b>: build and run apps live</span></button>

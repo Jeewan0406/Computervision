@@ -17,6 +17,16 @@ export interface CallResult {
   tokensIn?: number;
   tokensOut?: number;
   finishReason?: string;
+  /** Native tool calls requested by the model (agent mode). */
+  toolCalls?: { id: string; name: string; argsText: string }[];
+}
+
+/** OpenAI-style message, including tool calls and tool results (agent mode). */
+export type OAIMessage = ChatMsg | Record<string, unknown>;
+
+export interface OAITool {
+  type: 'function';
+  function: { name: string; description: string; parameters: unknown };
 }
 
 /** An HTTP or network failure, classified so the runner knows what to do. */
@@ -93,12 +103,17 @@ async function doFetch(url: string, init: RequestInit): Promise<Response> {
 
 export async function streamOpenAI(
   t: CallTarget,
-  messages: ChatMsg[],
+  messages: OAIMessage[],
   params: GenParams,
   signal: AbortSignal,
   h: StreamHandlers,
+  extra: { tools?: OAITool[]; toolChoice?: 'auto' | 'none' } = {},
 ): Promise<CallResult> {
   const body: Record<string, unknown> = { model: t.model, messages, stream: true };
+  if (extra.tools?.length) {
+    body.tools = extra.tools;
+    body.tool_choice = extra.toolChoice ?? 'auto';
+  }
   // Only send what the user explicitly set: some models reject custom sampling values.
   if (params.temperature != null) body.temperature = params.temperature;
   if (params.topP != null) body.top_p = params.topP;
@@ -119,6 +134,11 @@ export async function streamOpenAI(
       const j = JSON.parse(text);
       const msg = j?.choices?.[0]?.message ?? {};
       out.content = msg.content ?? '';
+      if (Array.isArray(msg.tool_calls) && msg.tool_calls.length) {
+        out.toolCalls = msg.tool_calls.map((tc: { id?: string; function?: { name?: string; arguments?: string } }) => ({
+          id: tc.id ?? '', name: tc.function?.name ?? '', argsText: tc.function?.arguments ?? '',
+        }));
+      }
       out.reasoning = msg.reasoning_content ?? msg.reasoning ?? '';
       out.tokensIn = j?.usage?.prompt_tokens;
       out.tokensOut = j?.usage?.completion_tokens;
@@ -154,6 +174,18 @@ export async function streamOpenAI(
     if (typeof delta.content === 'string' && delta.content) {
       out.content += delta.content;
       h.onText(delta.content);
+    }
+    if (Array.isArray(delta.tool_calls)) {
+      const calls = (out.toolCalls ??= []);
+      for (const tc of delta.tool_calls) {
+        const i = typeof tc.index === 'number' ? tc.index : calls.length ? calls.length - 1 : 0;
+        const cur = (calls[i] ??= { id: '', name: '', argsText: '' });
+        if (tc.id) cur.id = tc.id;
+        const nm = tc.function?.name;
+        if (nm) cur.name = cur.name && cur.name !== nm ? cur.name + nm : nm;
+        if (typeof tc.function?.arguments === 'string') cur.argsText += tc.function.arguments;
+        else if (tc.function?.arguments && typeof tc.function.arguments === 'object') cur.argsText = JSON.stringify(tc.function.arguments);
+      }
     }
     if (choice?.finish_reason) out.finishReason = choice.finish_reason;
     if (j?.usage) {
@@ -256,6 +288,67 @@ export async function streamAnthropic(
   }
 }
 
+/** One agent turn with Anthropic tool use. The full assistant content
+ * (including thinking blocks) is returned so it can be sent back unchanged. */
+export async function streamAnthropicAgent(
+  t: CallTarget,
+  system: string,
+  messages: unknown[],
+  tools: { name: string; description: string; parameters: unknown }[],
+  params: GenParams,
+  signal: AbortSignal,
+  h: StreamHandlers,
+): Promise<CallResult & { assistantContent: unknown[]; toolUses: { id: string; name: string; input: Record<string, unknown> }[]; stopReason?: string }> {
+  const { default: Anthropic } = await import('@anthropic-ai/sdk');
+  const client = new Anthropic({ apiKey: t.slot.apiKey, baseURL: viaProxy(baseOf(t), t), dangerouslyAllowBrowser: true, maxRetries: 0 });
+  const proxied = !!(t.slot.useProxy && t.corsProxy);
+  const req = {
+    model: t.model,
+    max_tokens: params.maxTokens ?? 32000,
+    system,
+    messages,
+    // Eager streaming sends tool input as it is written; JeeA! validates it before running a tool.
+    tools: tools.map((x) => ({ name: x.name, description: x.description, input_schema: x.parameters, ...(proxied ? {} : { eager_input_streaming: true }) })),
+    ...(ADAPTIVE.test(t.model) ? { thinking: { type: 'adaptive' as const, display: 'summarized' as const } } : {}),
+  };
+  const out: CallResult = { content: '', reasoning: '' };
+  try {
+    const stream = client.messages.stream(req as unknown as Parameters<typeof client.messages.stream>[0], { signal });
+    for await (const ev of stream) {
+      if (ev.type === 'content_block_delta') {
+        const d = ev.delta as { type: string; text?: string; thinking?: string };
+        if (d.type === 'text_delta' && d.text) {
+          out.content += d.text;
+          h.onText(d.text);
+        } else if (d.type === 'thinking_delta' && d.thinking) {
+          out.reasoning += d.thinking;
+          h.onReasoning?.(d.thinking);
+        }
+      }
+    }
+    const final = await stream.finalMessage();
+    const blocks = final.content as unknown as { type: string; id?: string; name?: string; input?: unknown }[];
+    return {
+      ...out,
+      tokensIn: final.usage?.input_tokens,
+      tokensOut: final.usage?.output_tokens,
+      finishReason: final.stop_reason ?? undefined,
+      stopReason: final.stop_reason ?? undefined,
+      assistantContent: final.content as unknown[],
+      toolUses: blocks
+        .filter((b) => b.type === 'tool_use')
+        .map((b) => ({ id: b.id ?? '', name: b.name ?? '', input: (b.input && typeof b.input === 'object' ? b.input : {}) as Record<string, unknown> })),
+    };
+  } catch (e) {
+    if (e instanceof Anthropic.APIUserAbortError) throw new DOMException('Aborted', 'AbortError');
+    if (e instanceof Anthropic.APIConnectionError) throw new LLMError('Network error: could not reach the Anthropic API from the browser.', { network: true });
+    if (e instanceof Anthropic.APIError) {
+      throw new LLMError(`${e.status ?? ''}: ${e.message}`.replace(/^: /, ''), { status: e.status, retryAfterMs: parseRetryAfter(e.headers?.get?.('retry-after') ?? null) });
+    }
+    throw e;
+  }
+}
+
 // --------------------------------------------------------------- model lists
 
 export async function listModels(t: Omit<CallTarget, 'model'>, signal?: AbortSignal): Promise<string[]> {
@@ -278,8 +371,7 @@ export async function listModels(t: Omit<CallTarget, 'model'>, signal?: AbortSig
     return ids;
   }
 
-  let url = `${baseOf(target)}/models`;
-  if (t.provider.id === 'github') url = 'https://models.github.ai/catalog/models';
+  const url = `${baseOf(target)}/models`;
   const res = await doFetch(viaProxy(url, target), {
     headers: t.slot.apiKey ? { Authorization: `Bearer ${t.slot.apiKey}` } : {},
     signal,

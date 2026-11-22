@@ -112,10 +112,9 @@ export function ModelPicker({
         <div className="mp-list">
           {usable.map((p) => {
             const { list, live } = modelsFor(p, slots);
-            const shown = list.filter((m) => !ql || m.toLowerCase().includes(ql) || p.name.toLowerCase().includes(ql));
-            const exact = list.some((m) => m.toLowerCase() === ql);
+            const shown = list.filter((m) => !ql || m.toLowerCase().includes(ql) || (p.modelLabels?.[m] ?? '').toLowerCase().includes(ql) || p.name.toLowerCase().includes(ql));
             const nSlots = slots.filter((s) => s.providerId === p.id && s.enabled).length;
-            if (!shown.length && !ql) return null;
+            if (!shown.length) return null;
             return (
               <div key={p.id} className="mp-group">
                 <div className="mp-group-head">
@@ -145,21 +144,22 @@ export function ModelPicker({
                   );
                 })}
                 {shown.length > 60 && <div className="mp-more">+{shown.length - 60} more — type to filter</div>}
-                {ql && !exact && (
-                  <button
-                    className="mp-item mp-custom"
-                    onClick={() => {
-                      onChange({ providerId: p.id, model: q.trim() });
-                      close();
-                    }}
-                  >
-                    Use “{q.trim()}” with {p.name}
-                  </button>
-                )}
                 {!live && !ql && <div className="mp-hint">Suggested list. Press ↻ to load the live list.</div>}
               </div>
             );
           })}
+          {ql && !usable.some((p) => modelsFor(p, slots).list.some((m) => m.toLowerCase() === ql)) && (
+            <div className="mp-group">
+              <div className="mp-group-head"><span className="mp-group-name">Use “{q.trim()}” as a custom model id with…</span></div>
+              <div className="mp-locked-grid">
+                {usable.map((p) => (
+                  <button key={p.id} className="chip" onClick={() => { onChange({ providerId: p.id, model: q.trim() }); close(); }}>
+                    <ProviderDot color={p.color} size={8} /> {p.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           {locked.length > 0 && (
             <div className="mp-group mp-locked">
               <div className="mp-group-head">

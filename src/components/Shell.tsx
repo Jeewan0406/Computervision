@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  Activity, Code2, Columns3, KeyRound, Menu, MessageSquare, Moon, Pencil, Pin, PinOff, Plus, Search,
+  Activity, Bot, Code2, Columns3, KeyRound, Menu, MessageSquare, Moon, Pencil, Pin, PinOff, Plus, Search,
   Settings as SettingsIcon, SlidersHorizontal, Sparkles, Sun, Monitor, Trash2, Users, X,
 } from 'lucide-react';
 import type { GenParams, SessionKind, View } from '../lib/types';
@@ -17,6 +17,7 @@ export const REPO_URL = 'https://github.com/jeewan0406/Computervision';
 
 const NAV: { view: View; label: string; icon: typeof MessageSquare; hint: string }[] = [
   { view: 'chat', label: 'Chat', icon: MessageSquare, hint: 'Standard chat' },
+  { view: 'agent', label: 'Agent', icon: Bot, hint: 'Goals, tools and 24/7 agents' },
   { view: 'compare', label: 'Compare', icon: Columns3, hint: 'Many models, one prompt' },
   { view: 'team', label: 'Team', icon: Users, hint: 'Different models, different roles' },
   { view: 'code', label: 'CodeFrame', icon: Code2, hint: 'Build and run apps live' },
@@ -24,7 +25,7 @@ const NAV: { view: View; label: string; icon: typeof MessageSquare; hint: string
   { view: 'logs', label: 'Logs', icon: Activity, hint: 'Every request, measured' },
 ];
 
-const KIND_LABEL: Record<SessionKind, string> = { chat: 'chat', compare: 'comparison', team: 'team run', code: 'project' };
+const KIND_LABEL: Record<SessionKind, string> = { chat: 'chat', agent: 'agent task', compare: 'comparison', team: 'team run', code: 'project' };
 
 export function Sidebar() {
   const view = useUI((s) => s.view);
@@ -46,7 +47,7 @@ export function Sidebar() {
   const [q, setQ] = useState('');
   const [renaming, setRenaming] = useState<string | null>(null);
 
-  const kind: SessionKind = view === 'compare' || view === 'team' || view === 'code' ? view : 'chat';
+  const kind: SessionKind = view === 'compare' || view === 'team' || view === 'code' || view === 'agent' ? view : 'chat';
   const list = useMemo(() => {
     const all = sessionsOf(kind, sessions);
     const ql = q.trim().toLowerCase();

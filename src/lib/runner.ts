@@ -75,7 +75,7 @@ const KEYLESS_GAP_MS = 45_000;
 let keylessLastStart = 0;
 let keylessCooldownUntil = 0;
 
-async function waitWithCountdown(ms: number, label: string, opts: RunOptions) {
+async function waitWithCountdown(ms: number, label: string, opts: { signal: AbortSignal; onStatus?: (t: string) => void }) {
   const end = Date.now() + ms;
   while (Date.now() < end) {
     const left = Math.ceil((end - Date.now()) / 1000);
@@ -121,10 +121,53 @@ const backoff = (attempt: number) => Math.min(8000, 600 * 2 ** attempt) * (0.6 +
 const sameRef = (a: ModelRef, b: ModelRef) => a.providerId === b.providerId && a.model === b.model;
 
 // ---- main entry ---------------------------------------------------------------
+export interface AttemptResult {
+  content: string;
+  reasoning: string;
+  tokensIn?: number;
+  tokensOut?: number;
+  finishReason?: string;
+}
+
+export type Attempt<R extends AttemptResult> = (
+  target: CallTarget,
+  handlers: { onText: (d: string) => void; onReasoning: (d: string) => void },
+  signal: AbortSignal,
+) => Promise<R>;
+
+export interface SlotRunOptions {
+  ref: ModelRef;
+  feature: View;
+  signal: AbortSignal;
+  onText?: (delta: string) => void;
+  onReasoning?: (delta: string) => void;
+  onStatus?: (text: string) => void;
+  /** Agent turns keep provider-specific history, so they must not switch provider. */
+  allowFallback?: boolean;
+  /** Text used to estimate input tokens when the provider does not report them. */
+  inputForEstimate?: string;
+}
+
+/** Plain chat: send messages, stream the answer. */
 export async function runChat(opts: RunOptions): Promise<RunResult> {
+  const { result, meta, usedRef } = await runWithSlots(
+    { ...opts, allowFallback: true, inputForEstimate: opts.messages.map((m) => m.content).join('\n') },
+    (target, h, signal) => {
+      const fn = target.provider.kind === 'anthropic' ? streamAnthropic : streamOpenAI;
+      return fn(target, opts.messages, opts.params ?? {}, signal, h);
+    },
+  );
+  return { content: result.content, reasoning: result.reasoning, meta, usedRef };
+}
+
+/** Run one model call with key rotation, cooldowns, retries, fallback and logging. */
+export async function runWithSlots<R extends AttemptResult>(
+  opts: SlotRunOptions,
+  attempt: Attempt<R>,
+): Promise<{ result: R; meta: MsgMeta; usedRef: ModelRef }> {
   const settings = useSettings.getState();
   const chain: ModelRef[] = [opts.ref];
-  if (settings.fallback.enabled) for (const r of settings.fallback.chain) if (!chain.some((c) => sameRef(c, r))) chain.push(r);
+  if (opts.allowFallback !== false && settings.fallback.enabled) for (const r of settings.fallback.chain) if (!chain.some((c) => sameRef(c, r))) chain.push(r);
 
   let lastErr: unknown = null;
   let triedAny = false;
@@ -148,7 +191,7 @@ export async function runChat(opts: RunOptions): Promise<RunResult> {
     for (const slot of slots) {
       if (modelProblem) break;
       const maxAttempts = 1 + Math.max(0, settings.maxRetries);
-      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      for (let tryNo = 0; tryNo < maxAttempts; tryNo++) {
         triedAny = true;
         if (provider.access === 'keyless') {
           const wait = Math.max(keylessCooldownUntil, keylessLastStart + KEYLESS_GAP_MS) - Date.now();
@@ -166,7 +209,7 @@ export async function runChat(opts: RunOptions): Promise<RunResult> {
           onText: (d: string) => {
             if (ttft == null) ttft = performance.now() - t0;
             received += d.length;
-            opts.onText(d);
+            opts.onText?.(d);
           },
           onReasoning: (d: string) => {
             if (ttft == null) ttft = performance.now() - t0;
@@ -176,26 +219,24 @@ export async function runChat(opts: RunOptions): Promise<RunResult> {
         };
         try {
           opts.onStatus?.('');
-          const fn = provider.kind === 'anthropic' ? streamAnthropic : streamOpenAI;
-          const r = await fn(target, opts.messages, opts.params ?? {}, opts.signal, handlers);
+          const r = await attempt(target, handlers, opts.signal);
           const totalMs = performance.now() - t0;
           const estimated = r.tokensOut == null;
-          const tokensIn = r.tokensIn ?? estimateTokens(opts.messages.map((m) => m.content).join('\n'));
+          const tokensIn = r.tokensIn ?? estimateTokens(opts.inputForEstimate ?? '');
           const tokensOut = r.tokensOut ?? estimateTokens(r.content + r.reasoning);
           patchSlot(slot, { status: 'ok', lastError: undefined, cooldownUntil: undefined, uses: slot.uses + 1 });
           log({
             level: 'info', type: 'request', feature: opts.feature, providerId: provider.id, providerName: provider.name,
             model: ref.model, slotLabel: slot.label, status: 'ok', httpStatus: 200, ttftMs: ttft, totalMs,
-            tokensIn, tokensOut, estimated, attempt: attempt + 1,
+            tokensIn, tokensOut, estimated, attempt: tryNo + 1,
             message: r.finishReason && r.finishReason !== 'stop' && r.finishReason !== 'end_turn' ? `Finished (${r.finishReason}).` : 'Completed.',
           });
           return {
-            content: r.content,
-            reasoning: r.reasoning,
+            result: r,
             usedRef: { providerId: provider.id, model: ref.model },
             meta: {
               ttftMs: ttft, totalMs, tokensIn, tokensOut, estimated, slotLabel: slot.label, providerName: provider.name,
-              attempts: attempt + 1, fellBackFrom: ci > 0 ? `${opts.ref.providerId}/${opts.ref.model}` : undefined,
+              attempts: tryNo + 1, fellBackFrom: ci > 0 ? `${opts.ref.providerId}/${opts.ref.model}` : undefined,
             },
           };
         } catch (e) {
@@ -207,7 +248,7 @@ export async function runChat(opts: RunOptions): Promise<RunResult> {
           const err = e instanceof LLMError ? e : new LLMError(String((e as Error)?.message ?? e));
           lastErr = err;
           const status = err.status;
-          const base = { type: 'request' as const, feature: opts.feature, providerId: provider.id, providerName: provider.name, model: ref.model, slotLabel: slot.label, httpStatus: status, totalMs, ttftMs: ttft, attempt: attempt + 1 };
+          const base = { type: 'request' as const, feature: opts.feature, providerId: provider.id, providerName: provider.name, model: ref.model, slotLabel: slot.label, httpStatus: status, totalMs, ttftMs: ttft, attempt: tryNo + 1 };
 
           // Text already shown: retrying would duplicate it, so stop here.
           if (received > 0) {
@@ -225,7 +266,7 @@ export async function runChat(opts: RunOptions): Promise<RunResult> {
             if (provider.access === 'keyless') {
               keylessCooldownUntil = Date.now() + cool;
               log({ ...base, level: 'warn', status: 'retry', message: `Free tier busy; waiting ${Math.ceil(cool / 1000)} s.` });
-              if (cool <= 90_000 && attempt + 1 < maxAttempts) continue; // loop waits with a countdown
+              if (cool <= 90_000 && tryNo + 1 < maxAttempts) continue; // loop waits with a countdown
               break;
             }
             patchSlot(slot, { status: 'cooldown', cooldownUntil: Date.now() + cool, lastError: `Rate limited (${status}).`, failures: slot.failures + 1 });
@@ -233,8 +274,8 @@ export async function runChat(opts: RunOptions): Promise<RunResult> {
             break; // next slot
           }
           if (err.network || status === 408 || status === 409 || (status != null && status >= 500)) {
-            if (attempt + 1 < maxAttempts) {
-              const wait = backoff(attempt);
+            if (tryNo + 1 < maxAttempts) {
+              const wait = backoff(tryNo);
               log({ ...base, level: 'warn', status: 'retry', message: `${err.message} — retrying in ${Math.round(wait)} ms.` });
               await waitWithCountdown(wait, 'Provider hiccup, retrying in', opts);
               continue;

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
 import { get as idbGet, set as idbSet } from 'idb-keyval';
 import type {
+  AgentSession,
   ChatSession,
   CodeSession,
   CompareSession,
@@ -12,6 +13,7 @@ import type {
 import { uid } from './utils';
 import { useSettings, usableModelRefs } from './settings';
 import { TEAM_PRESETS, presetRoles } from './team';
+import { DEFAULT_AGENT_TOOLS } from './agentText';
 
 /**
  * Conversations of every mode, stored in IndexedDB (not localStorage) because
@@ -39,7 +41,7 @@ export const useData = create<DataState & DataActions>()(
   immer((set) => ({
     hydrated: false,
     sessions: {},
-    active: { chat: null, compare: null, team: null, code: null },
+    active: { chat: null, agent: null, compare: null, team: null, code: null },
 
     create: (kind, init) => {
       const id = uid();
@@ -74,6 +76,13 @@ export const useData = create<DataState & DataActions>()(
           };
           break;
         }
+        case 'agent':
+          s = {
+            id, kind: 'agent', title: 'New agent task', createdAt: t, updatedAt: t,
+            model: settings.defaultModel, messages: [], tools: DEFAULT_AGENT_TOOLS.slice(), maxSteps: 8, files: {},
+            ...(init as Partial<AgentSession>),
+          };
+          break;
         case 'code':
         default:
           s = {
@@ -113,7 +122,7 @@ export const useData = create<DataState & DataActions>()(
     clearAll: () =>
       set((st) => {
         st.sessions = {};
-        st.active = { chat: null, compare: null, team: null, code: null };
+        st.active = { chat: null, agent: null, compare: null, team: null, code: null };
       }),
 
     importSessions: (list) =>
@@ -160,7 +169,7 @@ function markStopped(s: Session) {
   const fix = (m: { status?: string }) => {
     if (m.status === 'streaming') m.status = 'stopped';
   };
-  if (s.kind === 'chat' || s.kind === 'code') s.messages.forEach(fix);
+  if (s.kind === 'chat' || s.kind === 'code' || s.kind === 'agent') s.messages.forEach(fix);
   if (s.kind === 'compare') {
     s.lanes.forEach((l) => l.messages.forEach(fix));
     if (s.judge?.message) fix(s.judge.message);

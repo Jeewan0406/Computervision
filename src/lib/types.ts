@@ -94,6 +94,8 @@ export interface Message {
   status?: MsgStatus;
   /** Short live note while waiting (rate-limit countdown, fallback, ...). */
   statusText?: string;
+  /** Agent mode: the plan / tool steps taken before the final answer. */
+  steps?: AgentStep[];
   error?: string;
   createdAt: number;
 }
@@ -195,10 +197,41 @@ export interface CodeSession {
   versions: CodeVersion[];
 }
 
-export type Session = ChatSession | CompareSession | TeamSession | CodeSession;
+export interface AgentToolCall {
+  name: string;
+  args: Record<string, unknown>;
+  status: 'running' | 'done' | 'error';
+  result?: string;
+  ms?: number;
+  link?: { view: 'code'; sessionId: string; label: string };
+}
+
+export interface AgentStep {
+  id: string;
+  kind: 'thought' | 'tool';
+  text?: string;
+  tool?: AgentToolCall;
+}
+
+export interface AgentSession {
+  id: string;
+  kind: 'agent';
+  title: string;
+  createdAt: number;
+  updatedAt: number;
+  pinned?: boolean;
+  model: ModelRef;
+  messages: Message[];
+  tools: string[];
+  maxSteps: number;
+  /** Agent workspace: files the agent wrote (path -> text). */
+  files: Record<string, string>;
+}
+
+export type Session = ChatSession | CompareSession | TeamSession | CodeSession | AgentSession;
 export type SessionKind = Session['kind'];
 
-export type View = 'chat' | 'compare' | 'team' | 'code' | 'keys' | 'logs';
+export type View = 'chat' | 'agent' | 'compare' | 'team' | 'code' | 'keys' | 'logs';
 
 export type LogLevel = 'info' | 'warn' | 'error';
 

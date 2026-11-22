@@ -23,7 +23,6 @@ const ALLOWED_HOSTS = new Set([
   'api.x.ai',
   'api.cohere.ai',
   'router.huggingface.co',
-  'models.github.ai',
   'openrouter.ai',
   'api.openai.com',
   'api.anthropic.com',
@@ -32,6 +31,10 @@ const ALLOWED_HOSTS = new Set([
 
 // Optional: lock the proxy to your site, e.g. ['https://<user>.github.io'].
 const ALLOWED_ORIGINS = [];
+
+// Lets the Agent's "Read a web page" tool fetch public pages (GET only, and
+// your Authorization header is never forwarded to those sites).
+const ALLOW_WEB_READ = true;
 
 const STRIP = ['host', 'origin', 'referer', 'cookie', 'cf-connecting-ip', 'x-forwarded-for', 'x-real-ip', 'x-forwarded-proto'];
 
@@ -59,12 +62,18 @@ export default {
     } catch {
       return new Response('Usage: <proxy>/https://api.example.com/v1/...', { status: 400, headers: cors });
     }
-    if (target.protocol !== 'https:' || !ALLOWED_HOSTS.has(target.hostname)) {
+    const aiHost = ALLOWED_HOSTS.has(target.hostname);
+    const webRead = ALLOW_WEB_READ && request.method === 'GET' && !aiHost;
+    if (target.protocol !== 'https:' || (!aiHost && !webRead)) {
       return new Response(`Host not allowed: ${target.hostname}`, { status: 403, headers: cors });
     }
 
     const headers = new Headers(request.headers);
     for (const h of STRIP) headers.delete(h);
+    if (webRead) {
+      headers.delete('authorization');
+      headers.delete('x-api-key');
+    }
     const upstream = await fetch(target.toString(), {
       method: request.method,
       headers,

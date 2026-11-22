@@ -9,6 +9,7 @@ import { ChatView } from './views/ChatView';
 import { LogoMark } from './components/Logo';
 
 // Heavier views load on first visit.
+const AgentView = lazy(() => import('./views/AgentView').then((m) => ({ default: m.AgentView })));
 const CompareView = lazy(() => import('./views/CompareView').then((m) => ({ default: m.CompareView })));
 const TeamView = lazy(() => import('./views/TeamView').then((m) => ({ default: m.TeamView })));
 const CodeView = lazy(() => import('./views/CodeView').then((m) => ({ default: m.CodeView })));
@@ -62,6 +63,7 @@ export default function App() {
         ) : (
           <Suspense fallback={<Loading />}>
             {view === 'chat' && <ChatView />}
+            {view === 'agent' && <AgentView />}
             {view === 'compare' && <CompareView />}
             {view === 'team' && <TeamView />}
             {view === 'code' && <CodeView />}

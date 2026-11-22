@@ -8,7 +8,7 @@ import { downloadText, fmtMs, fmtNum, fmtTime } from '../lib/utils';
 import { TopBar } from '../components/Shell';
 import { ProviderDot } from '../components/ModelPicker';
 
-const FEATURES = ['all', 'chat', 'compare', 'team', 'code', 'keys', 'system'] as const;
+const FEATURES = ['all', 'chat', 'agent', 'compare', 'team', 'code', 'keys', 'system'] as const;
 
 const median = (xs: number[]) => {
   if (!xs.length) return undefined;

@@ -23,6 +23,8 @@ export interface Settings {
   /** model key -> wins / battles from Compare votes */
   leaderboard: Record<string, { wins: number; battles: number }>;
   seenVersion: string;
+  /** "owner/repo" that runs the 24/7 GitHub agents (auto-detected on github.io). */
+  agentRepo: string;
 }
 
 interface SettingsActions {
@@ -51,6 +53,7 @@ const initial: Settings = {
   corsProxy: '',
   leaderboard: {},
   seenVersion: '',
+  agentRepo: '',
 };
 
 const SESSION_KEYS = 'jeea.keys.session';

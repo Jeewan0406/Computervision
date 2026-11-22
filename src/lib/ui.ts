@@ -33,7 +33,7 @@ interface UIState {
   goAddSlot: (providerId: string | null) => void;
 }
 
-const VIEWS: View[] = ['chat', 'compare', 'team', 'code', 'keys', 'logs'];
+const VIEWS: View[] = ['chat', 'agent', 'compare', 'team', 'code', 'keys', 'logs'];
 const fromHash = (): View => {
   const v = location.hash.replace(/^#\/?/, '').split('/')[0] as View;
   return VIEWS.includes(v) ? v : 'chat';

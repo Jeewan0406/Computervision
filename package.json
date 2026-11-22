@@ -1,7 +1,7 @@
 {
   "name": "jeea",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "JeeA! \u2014 one beautiful chat for many AI models: free models, your own API keys, side-by-side compare, multi-role teams and a live CodeFrame.",
   "type": "module",
   "scripts": {
@@ -9,7 +9,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --no-warnings --test tests/logic.test.ts"
+    "test": "node --experimental-strip-types --no-warnings --test tests/logic.test.ts tests/agent.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.12.0",

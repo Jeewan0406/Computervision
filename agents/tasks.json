@@ -1,0 +1,25 @@
+{
+  "about": "24/7 agent tasks for JeeA!. Each task runs on GitHub Actions when it is due. 'every' accepts 30m, 1h, 6h, 1d, 7d. 'model' is 'auto' (first provider with a secret, else the free model) or 'provider:model', e.g. 'groq:llama-3.3-70b-versatile'. Tools: search_wikipedia, read_wikipedia, fetch_url, calculate, get_datetime, previous_result.",
+  "tasks": [
+    {
+      "id": "tech-digest",
+      "name": "Daily tech digest",
+      "enabled": true,
+      "every": "1d",
+      "model": "auto",
+      "maxSteps": 6,
+      "tools": ["fetch_url", "get_datetime", "previous_result"],
+      "prompt": "Read the Hacker News front page feed at https://news.ycombinator.com/rss. Write a digest of the 5 most interesting stories: one plain-English line each, with the link. Then use previous_result and mark stories that were not in the last digest as NEW."
+    },
+    {
+      "id": "daily-fact",
+      "name": "Fact of the day",
+      "enabled": true,
+      "every": "1d",
+      "model": "auto",
+      "maxSteps": 6,
+      "tools": ["get_datetime", "search_wikipedia", "read_wikipedia"],
+      "prompt": "Use get_datetime to find today's date. Find one notable event in science or history that happened on this calendar day, research it with search_wikipedia and read_wikipedia, and write a 150-word explanation in simple English with the Wikipedia link."
+    }
+  ]
+}

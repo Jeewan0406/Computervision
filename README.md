@@ -6,7 +6,7 @@
 
 **Many AIs. One place.**
 
-Chat with many AI models in one beautiful app. Start free with no key, add your own API keys, compare models side by side, give different models different jobs, and build web apps live.
+Chat with many AI models in one beautiful app. Start free with no key, add your own API keys, compare models side by side, give different models different jobs, build web apps live, and run AI agents, in your browser or 24/7 on GitHub.
 
 **Live site:** https://jeewan0406.github.io/Computervision/ *(works after GitHub Pages is switched on, see [Deploy](#deploy-on-github-pages))*
 
@@ -21,8 +21,10 @@ Chat with many AI models in one beautiful app. Start free with no key, add your 
 | Feature | What it does |
 |---|---|
 | 💬 **Chat** | A standard chat: streaming answers, Markdown, tables, code highlighting, the model's reasoning (when it shares it), edit and resend, regenerate, history with search, pin and rename, export to Markdown. |
+| 🤖 **Agent** | Give a goal. The agent plans and uses tools step by step: Wikipedia search and reading, web pages, exact maths, a JavaScript sandbox, date and time, long-term memory, workspace files, creating web apps, and asking other models. Every step is shown and can be opened. |
+| ⏰ **24/7 agents** | Scheduled agents run on GitHub Actions in your repository, even when your computer is off, and save Markdown reports that the Agent page shows. |
 | 🆓 **Free model** | Works the moment the page opens. No sign-up, no key. It uses the shared free tier of the Pollinations Classic API. |
-| 🔑 **API Slots** | Add as many keys as you like for 17 providers, or your own endpoint. Several keys for one provider are rotated, and a key that hits a rate limit is rested while the next one takes over. |
+| 🔑 **API Slots** | Add as many keys as you like for 16 providers, or your own endpoint. Several keys for one provider are rotated, and a key that hits a rate limit is rested while the next one takes over. |
 | ⚖️ **Compare** | Send one prompt to up to 6 models at once. See time to first token, total time, speed and tokens. Vote for the best answer, keep a personal leaderboard, or let an AI judge rank the anonymous answers. |
 | 👥 **Team** | Give different models different roles in one run. Three ways to work: **Pipeline** (one after another), **Mixture** (all answer, one merges) and **Debate** (argue in rounds, a judge decides). Five ready-made teams. |
 | 🧩 **CodeFrame** | Describe an app and watch the code being written, then run it in a locked sandbox. Editor, phone/tablet/desktop sizes, console with "ask the AI to fix these errors", version history, download. |
@@ -30,6 +32,10 @@ Chat with many AI models in one beautiful app. Start free with no key, add your 
 | 🎨 **Design** | Dark and light themes, 5 accent colours, works on phones, installable as an app (PWA), works offline after the first visit. |
 
 <table>
+<tr>
+<td><img src="docs/screenshots/agent.jpg" alt="Agent view" /></td>
+<td><img src="docs/screenshots/agent-247.jpg" alt="24/7 agents" /></td>
+</tr>
 <tr>
 <td><img src="docs/screenshots/compare.jpg" alt="Compare view" /></td>
 <td><img src="docs/screenshots/team.jpg" alt="Team view" /></td>
@@ -51,10 +57,26 @@ You can use any model a provider offers: JeeA! loads the live model list from th
 | Provider | Access | Notes |
 |---|---|---|
 | JeeA Free (Pollinations Classic) | Free, no key | One text model, one request per IP at a time, at least 45 seconds apart ([Pollinations docs](https://github.com/pollinations/pollinations/blob/master/APIDOCS.md)). Good for trying the app. |
-| Google Gemini · Groq · OpenRouter · Mistral · Cerebras · GitHub Models · Hugging Face · Cohere · SambaNova · NVIDIA NIM | Free tier with a key | Free tiers and their limits are set by each provider and change often. Check the provider's page. |
+| Google Gemini · Groq · OpenRouter · Mistral · Cerebras · Hugging Face · Cohere · SambaNova · NVIDIA NIM | Free tier with a key | Free tiers and their limits are set by each provider and change often. Check the provider's page. |
 | OpenAI · Anthropic Claude · DeepSeek · xAI Grok · Together AI | Paid key | |
 | Ollama · LM Studio | Runs on your computer | Turn on CORS in the local server (see the note in the app). |
 | Your own endpoint | Any | Any OpenAI-compatible `/chat/completions` server, or the Anthropic Messages format. |
+
+## Agents
+
+**In the browser (Agent → Run here).** Pick a model, choose tools, and give a goal. Models with native tool calling (OpenAI-compatible providers and Claude) get real tool calls. Models without it, including the free model, use a simple text tool protocol automatically, and JeeA! switches to it by itself if a provider rejects tools. Code the agent writes runs in a Web Worker inside an isolated iframe with an 8-second limit, so it cannot read your keys or freeze the page.
+
+**24/7 on GitHub (Agent → 24/7 on GitHub).** The workflow `.github/workflows/agents.yml` runs every hour at minute 17 and starts each task in `agents/tasks.json` when it is due. Reports go to the `agent-results` branch, and the Agent page reads them.
+
+1. *(Optional)* Add a key under **Settings → Secrets and variables → Actions**, for example `GEMINI_API_KEY` or `GROQ_API_KEY`. With no secret, tasks use the shared free model.
+2. Edit `agents/tasks.json`, or use the task builder in the app and paste the result in.
+3. Run it now from **Actions → 24/7 Agents → Run workflow**, or wait for the schedule.
+
+Limits you should know:
+- GitHub runs scheduled workflows at most every 5 minutes, may delay them at busy times (especially the start of the hour), and may drop some queued jobs under very high load ([GitHub docs](https://github.com/github/docs/blob/main/content/actions/reference/workflows-and-actions/events-that-trigger-workflows.md)).
+- In a public repository, GitHub switches scheduled workflows off after 60 days with no repository activity. Turn them back on from the Actions tab.
+- In a public repository, the reports are public too.
+- "24/7" here means "on a schedule, all day and night", not a server that is always running.
 
 ## Deploy on GitHub Pages
 
@@ -119,18 +141,21 @@ Requires Node.js 20.19+ or 22.12+ (CI uses Node 22).
 ```
 src/
   lib/            core logic
-    providers.ts    provider catalog (free model + 17 keyed providers)
+    providers.ts    provider catalog (free model + 16 keyed providers)
     llm.ts          streaming clients: OpenAI-compatible + Anthropic SDK
     runner.ts       key rotation, retries, cooldowns, fallback, logging
     team.ts         Pipeline / Mixture / Debate planner and presets
+    agent.ts        agent loop (native tools, Claude tool use, text protocol)
+    tools.ts        the 13 browser tools and the code sandbox
     settings.ts     keys, providers, preferences (localStorage)
     data.ts         conversations (IndexedDB, debounced writes)
     logs.ts         activity log (IndexedDB)
     markdown.ts     safe Markdown + code highlighting
-  views/          Chat, Compare, Team, CodeFrame, API Slots, Logs
+  views/          Chat, Agent, Compare, Team, CodeFrame, API Slots, Logs
+agents/           24/7 runner (run.mjs), its helpers and tasks.json
   components/     model picker, messages, composer, sidebar, dialogs, editor
 public/           logo, icons, manifest, service worker
-proxy/            optional Cloudflare Worker CORS proxy
+proxy/            optional Cloudflare Worker CORS proxy (AI APIs + web reading)
 tests/            unit tests
 ```
 
