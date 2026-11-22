@@ -1,7 +1,9 @@
 import { useRef, type ReactNode } from 'react';
 import { CheckCircle2, Info, Trophy, X, XCircle } from 'lucide-react';
 import { useUI } from '../lib/ui';
-import { useSettings, type Accent, type Theme, modelKey, allProviders } from '../lib/settings';
+import { useSettings, type Accent, type Theme, modelKey, allProviders, gatewayInfo } from '../lib/settings';
+import type { WebMode } from '../lib/web';
+import { WEB_HELP } from './Web';
 import { useData } from '../lib/data';
 import { useLogs } from '../lib/logs';
 import { CHANGELOG, APP_VERSION } from '../lib/changelog';
@@ -76,6 +78,23 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
           <span>Default model for new chats</span>
           <ModelPicker value={s.defaultModel} onChange={(r) => s.set({ defaultModel: { providerId: r.providerId, model: r.model } })} align="end" />
         </div>
+      </section>
+      <section className="set-section">
+        <h3>Web search</h3>
+        <div className="set-row">
+          <span>Look things up on the web</span>
+          <div className="seg">
+            {([['auto', 'Auto'], ['on', 'Always'], ['off', 'Off']] as [WebMode, string][]).map(([id, label]) => (
+              <button key={id} className={s.webMode === id ? 'active' : ''} onClick={() => s.set({ webMode: id })}>{label}</button>
+            ))}
+          </div>
+        </div>
+        <p className="muted sm">{WEB_HELP[s.webMode].split('. Click')[0]}.</p>
+        <p className="muted sm">
+          Sources: Wikipedia articles, plus Wikipedia's "In the news" and "Current events" for news questions (free, no key).
+          {gatewayInfo() ? ' This site\'s gateway can also add full web search, if its owner set a search key.' : ' A site owner can add full web search (Tavily) through the JeeA Gateway.'}
+          {' '}Answers show numbered sources you can open. Your question words are sent to these services.
+        </p>
       </section>
       <section className="set-section">
         <h3>Your data</h3>

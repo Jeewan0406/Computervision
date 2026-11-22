@@ -8,6 +8,8 @@ import { openInCodeFrame } from '../lib/actions';
 import { useSettings, allProviders } from '../lib/settings';
 import { useUI } from '../lib/ui';
 import { ModelBadge } from './ModelPicker';
+import { SourcesBar } from './Web';
+import { linkCitations } from '../lib/web';
 
 /** Markdown with working "Copy / Download / Run" buttons on code blocks. */
 export const Markdown = memo(function Markdown({ text, className = '' }: { text: string; className?: string }) {
@@ -132,6 +134,7 @@ export const MessageItem = memo(function MessageItem({
 
   const split = m.reasoning ? { reasoning: m.reasoning, answer: m.content } : splitThink(m.content);
   const text = displayText ?? split.answer;
+  const shown = m.sources ? linkCitations(text, m.sources) : text;
   const provider = m.model ? allProviders().find((p) => p.id === m.model!.providerId) : undefined;
   const runnable = !streaming && m.content.includes('```') ? extractRunnable(m.content) : null;
 
@@ -149,7 +152,8 @@ export const MessageItem = memo(function MessageItem({
         )}
         <Reasoning text={split.reasoning} streaming={streaming && !text} />
         {m.statusText && <div className="status-line"><span className="pulse-dot" />{m.statusText}</div>}
-        {text ? <Markdown text={text} /> : streaming && !split.reasoning && !m.statusText ? <TypingDots /> : null}
+        {text ? <Markdown text={shown} /> : streaming && !split.reasoning && !m.statusText ? <TypingDots /> : null}
+        {(m.sources || (!streaming && m.web?.note)) && <SourcesBar sources={m.sources} web={m.web} />}
         {m.status === 'error' && (
           <div className="msg-error">
             <AlertTriangle size={15} />

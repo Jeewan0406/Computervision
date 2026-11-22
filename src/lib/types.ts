@@ -1,4 +1,5 @@
 // Shared data types for JeeA!
+import type { WebSource } from './web';
 
 /** How the app talks to a provider. Almost every provider speaks the OpenAI
  * "chat/completions" dialect; Anthropic has its own "messages" API. */
@@ -106,6 +107,10 @@ export interface Message {
   statusText?: string;
   /** Agent mode: the plan / tool steps taken before the final answer. */
   steps?: AgentStep[];
+  /** Web results this answer was given (automatic web search). */
+  sources?: WebSource[];
+  /** Set when the app searched the web for this answer. */
+  web?: { query: string; at: number; note?: string };
   error?: string;
   createdAt: number;
 }
@@ -172,6 +177,9 @@ export interface TeamRun {
   createdAt: number;
   steps: TeamStep[];
   status: 'running' | 'done' | 'error' | 'stopped';
+  /** Web results shared with every role (automatic web search). */
+  sources?: WebSource[];
+  web?: { query: string; at: number; note?: string };
 }
 
 export interface TeamSession {

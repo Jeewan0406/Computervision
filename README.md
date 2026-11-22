@@ -21,6 +21,7 @@ Chat with many AI models in one beautiful app. Start free with no key, add your 
 | Feature | What it does |
 |---|---|
 | 💬 **Chat** | A standard chat with the model picker inside the chat box and friendly model names ("Llama 3.3 70B", "Gemini 2.5 Flash"): streaming answers, Markdown, tables, code highlighting, the model's reasoning (when it shares it), edit and resend, regenerate, history with search, pin and rename, export to Markdown. |
+| 🌐 **Web: Auto** | Fresh facts without pressing anything. When a question needs up-to-date information (news, dates, prices, people in office, versions, results), JeeA! searches the web first, gives the results and today's date to the model, and shows numbered **Sources** under the answer. The 🌐 button in the chat box switches between **Auto**, **On** (every message) and **Off**. Works in Chat, Compare and Team. |
 | 🤖 **Agent** | Give a goal. The agent plans and uses tools step by step: Wikipedia search and reading, web pages, exact maths, a JavaScript sandbox, date and time, long-term memory, workspace files, creating web apps, and asking other models. Every step is shown and can be opened. |
 | ⏰ **24/7 agents** | Scheduled agents run on GitHub Actions in your repository, even when your computer is off, and save Markdown reports that the Agent page shows. |
 | 🆓 **Free models** | Works the moment the page opens: the shared Pollinations model needs no sign-up and no key. **Puter** adds hundreds of models (GPT, Claude, Gemini, Llama…) with a free Puter account. With the optional **JeeA Gateway**, the site owner can share free NVIDIA and other models with every visitor. Free models carry a green **Free** tag. |
@@ -29,9 +30,13 @@ Chat with many AI models in one beautiful app. Start free with no key, add your 
 | 👥 **Team** | Give different models different roles in one run. Three ways to work: **Pipeline** (one after another), **Mixture** (all answer, one merges) and **Debate** (argue in rounds, a judge decides). Five ready-made teams. |
 | 🧩 **CodeFrame** | Describe an app and watch the code being written, then run it in a locked sandbox. Editor, phone/tablet/desktop sizes, console with "ask the AI to fix these errors", version history, download. |
 | 📈 **Logs** | Every request is recorded: provider, model, key name, status, time to first token, total time and tokens. Charts, filters and CSV/JSON export. No keys or message text are stored in the log. |
-| 🎨 **Design** | A Bhutan-inspired "Druk" look: saffron, gold and maroon, a dzong-white light mode, a prayer-flag ribbon and a faint woven-textile pattern. Dark and light themes, 6 accent colours, works on phones, installable as an app (PWA), works offline after the first visit. |
+| 🎨 **Design** | A clean "J!" speech-bubble logo on a dzong-maroon tile with a prayer-flag strip, and a Bhutan-inspired "Druk" look: saffron, gold and maroon, a dzong-white light mode, a prayer-flag ribbon and a faint woven-textile pattern. Dark and light themes, 6 accent colours, works on phones, installable as an app (PWA), works offline after the first visit. |
 
 <table>
+<tr>
+<td><img src="docs/screenshots/web.jpg" alt="Web: Auto searched the web by itself and shows numbered sources" /></td>
+<td><img src="docs/screenshots/web-compare.jpg" alt="Compare: one web search shared by every model" /></td>
+</tr>
 <tr>
 <td><img src="docs/screenshots/picker.jpg" alt="Model picker inside the chat box with Free tags" /></td>
 <td><img src="docs/screenshots/agent.jpg" alt="Agent view" /></td>
@@ -77,9 +82,18 @@ No AI provider offers truly unlimited free use, and an API key placed in a publi
 2. Open the Worker, choose **Edit code**, replace everything with the contents of `proxy/jeea-gateway.js`, and **Deploy**.
 3. Open **Settings → Variables and Secrets → Add**. Add `NVIDIA_API_KEY` with type **Secret** (your key from build.nvidia.com). Optionally add `GROQ_API_KEY`, `GEMINI_API_KEY`, `CEREBRAS_API_KEY`, `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` as secrets, and `ALLOWED_ORIGINS` (type Text) = `https://<your-user>.github.io`. **Deploy**.
 4. *(Free, no extra key)* In the Worker's **Settings**, look for **Bindings** and add a **Workers AI** binding named `AI` (the dashboard wording may differ slightly; with Wrangler it is `"ai": { "binding": "AI" }` in the config file). This adds Cloudflare Workers AI models (Llama 3.3 70B, Llama 4 Scout, Mistral Small 3.1, QwQ 32B, DeepSeek R1 Distill, Qwen 2.5 Coder, GPT-OSS 120B), which use Cloudflare's free allowance of 10,000 Neurons per day ([Cloudflare pricing docs](https://github.com/cloudflare/cloudflare-docs/blob/production/src/content/docs/workers-ai/platform/pricing.mdx)).
-5. Copy the Worker address (`https://jeea-gateway.<name>.workers.dev`) into `public/jeea.config.json` → `"gateway"`, and commit. After the site redeploys, every visitor sees **JeeA Free+** in the model picker.
+5. *(Optional, full web search)* Add the secret `TAVILY_API_KEY` (a key from tavily.com). JeeA!'s **Web: Auto** mode then uses full web search through `POST /v1/search`, cached for 10 minutes and limited to 6 searches per visitor per minute (`SEARCH_PER_MINUTE`). Without it, the app still searches Wikipedia on its own.
+6. Copy the Worker address (`https://jeea-gateway.<name>.workers.dev`) into `public/jeea.config.json` → `"gateway"`, and commit. After the site redeploys, every visitor sees **JeeA Free+** in the model picker.
 
 The visitors share your free limits, so for many users add more providers' keys or keep the per-minute limit low.
+
+## How the automatic web search works
+
+1. **Decide.** For each message, a small set of rules (`src/lib/web.ts`) looks for signs that the answer may have changed since the model was trained: words such as *latest, today, price, won, released, current, news*, a year such as *2026*, or a short factual question about a named person, place or product. Greetings, maths, code and writing tasks (poems, emails, translations) are not searched, unless they ask for news or the web.
+2. **Search.** It turns the question into search words (*"Who is the current prime minister of Bhutan?"* → *prime minister Bhutan*) and asks, in parallel: the gateway's web search (if the site owner set a Tavily key), Wikipedia article intros, and, for news questions, Wikipedia's *In the news* and the last two days of *Current events*. Wikipedia is called with `origin=*`, MediaWiki's anonymous cross-site mode, so no key or proxy is needed. The search stops after 8 seconds and a failed source is skipped.
+3. **Answer.** The model gets today's date, your time zone and the numbered results, and is told to cite them as [1], [2]. The answer shows **Sources** chips, and each [n] links to its source. Compare runs one search for all models; Team gives the same results to every role.
+
+**Limits.** Rules can guess wrong, so use **On** to force a search or **Off** to stop it. Wikipedia is not a news site: without the gateway search key, very recent or local news may be missing. Your search words are sent to Wikipedia (and to the gateway, if used). Free models with short context windows may ignore part of the results.
 
 ## Agents
 
@@ -162,6 +176,8 @@ src/
   lib/            core logic
     providers.ts    provider catalog (3 no-key providers, 19 with keys)
     models.ts       friendly model names and Free detection
+    web.ts          automatic web search: when to search, Wikipedia/gateway search, prompt
+    webrun.ts       runs the search for Chat, Compare and Team (stoppable, logged)
     llm.ts          streaming clients: OpenAI-compatible + Anthropic SDK
     runner.ts       key rotation, retries, cooldowns, fallback, logging
     team.ts         Pipeline / Mixture / Debate planner and presets

@@ -22,6 +22,11 @@
  *     Qwen 2.5 Coder, GPT-OSS 120B) on Cloudflare's free daily allowance.
  *     Optional text: PER_MINUTE (requests per visitor per minute, default 12),
  *     MAX_TOKENS (cap per answer, default 4096).
+ *  3c. Optional full web search for JeeA!'s automatic "Web: Auto" mode:
+ *     add the secret TAVILY_API_KEY (from tavily.com). Without it the app
+ *     still searches Wikipedia on its own. Optional text: SEARCH_PER_MINUTE
+ *     (searches per visitor per minute, default 6). Results are cached for
+ *     10 minutes to save your search credits.
  *  4. Copy the worker URL (https://jeea-gateway.<name>.workers.dev) into
  *     public/jeea.config.json -> "gateway" in your repository.
  *
@@ -29,6 +34,9 @@
  *   GET  /v1/models            -> models from every provider that has a key
  *   POST /v1/chat/completions  -> model id "provider:model", e.g.
  *                                 "nvidia:meta/llama-3.3-70b-instruct"
+ *   POST /v1/search            -> {query, max_results?, topic?: "general"|"news"}
+ *                                 -> {results: [{title, url, content, published_date}]}
+ *                                 (501 when TAVILY_API_KEY is not set)
  */
 
 const UPSTREAMS = {
@@ -159,6 +167,31 @@ async function listUpstream(name, up, key) {
     .filter((id) => !up.freeOnly || id.endsWith(':free'));
 }
 
+/** Web search through Tavily with the owner's key, cached for 10 minutes. */
+async function webSearch(env, body, cors) {
+  const query = String(body?.query ?? '').trim().slice(0, 400);
+  if (!query) return json({ error: { message: 'Missing "query".' } }, 400, cors);
+  const max = Math.max(1, Math.min(8, Number(body?.max_results) || 5));
+  const topic = body?.topic === 'news' ? 'news' : 'general';
+  const cache = typeof caches !== 'undefined' ? caches.default : null;
+  const cacheKey = new Request(`https://jeea-gateway.cache/search?t=${topic}&n=${max}&q=${encodeURIComponent(query.toLowerCase())}`);
+  const hit = cache && (await cache.match(cacheKey));
+  if (hit) return json(await hit.json(), 200, cors);
+  const r = await fetch('https://api.tavily.com/search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.TAVILY_API_KEY}` },
+    body: JSON.stringify({ query, max_results: max, topic, search_depth: 'basic', include_answer: false }),
+  });
+  if (!r.ok) return json({ error: { message: `Search provider error (HTTP ${r.status}).` } }, r.status === 429 ? 429 : 502, cors);
+  const data = await r.json();
+  const results = (Array.isArray(data?.results) ? data.results : [])
+    .filter((x) => x && typeof x.url === 'string' && typeof x.content === 'string')
+    .map((x) => ({ title: String(x.title || ''), url: x.url, content: x.content.slice(0, 1500), published_date: x.published_date || undefined }));
+  const out = { results };
+  if (cache) await cache.put(cacheKey, new Response(JSON.stringify(out), { headers: { 'Cache-Control': 'max-age=600' } }));
+  return json(out, 200, cors);
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin') || '';
@@ -178,7 +211,7 @@ export default {
     if (request.method === 'GET' && (path === '' || path === '/' || path === '/v1')) {
       const ready = Object.keys(UPSTREAMS).filter((n) => env[UPSTREAMS[n].secret]);
       if (env.AI) ready.unshift('cloudflare');
-      return json({ name: 'JeeA Gateway', providers: ready, endpoints: ['/v1/models', '/v1/chat/completions'] }, 200, cors);
+      return json({ name: 'JeeA Gateway', providers: ready, search: !!env.TAVILY_API_KEY, endpoints: ['/v1/models', '/v1/chat/completions', '/v1/search'] }, 200, cors);
     }
 
     if (request.method === 'GET' && path === '/v1/models') {
@@ -194,6 +227,27 @@ export default {
         }
       }
       return json({ object: 'list', data: out }, 200, cors);
+    }
+
+    if (request.method === 'POST' && path === '/v1/search') {
+      if (!env.TAVILY_API_KEY) return json({ error: { message: 'This gateway has no search key (TAVILY_API_KEY).' } }, 501, cors);
+      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+      const perMinute = Number(env.SEARCH_PER_MINUTE || 6);
+      if (!allowed(`search:${ip}`, perMinute)) {
+        return new Response(JSON.stringify({ error: { message: `Search limit reached: ${perMinute} per minute.` } }), {
+          status: 429,
+          headers: { 'Content-Type': 'application/json', 'Retry-After': '60', ...cors },
+        });
+      }
+      const text = await request.text();
+      if (text.length > 4000) return json({ error: { message: 'Request too large.' } }, 413, cors);
+      let body;
+      try {
+        body = JSON.parse(text);
+      } catch {
+        return json({ error: { message: 'Body must be JSON.' } }, 400, cors);
+      }
+      return webSearch(env, body, cors);
     }
 
     if (request.method === 'POST' && path === '/v1/chat/completions') {
@@ -242,6 +296,6 @@ export default {
       return new Response(upstream.body, { status: upstream.status, headers }); // streams Server-Sent Events through
     }
 
-    return json({ error: { message: 'Not found. Use /v1/models or /v1/chat/completions.' } }, 404, cors);
+    return json({ error: { message: 'Not found. Use /v1/models, /v1/chat/completions or /v1/search.' } }, 404, cors);
   },
 };

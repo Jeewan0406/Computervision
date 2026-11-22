@@ -4,7 +4,8 @@
  * repeat visits cost the host almost no bandwidth. API calls to model
  * providers are never cached (they go straight to the network).
  */
-const CACHE = 'jeea-v1';
+// Bump when un-hashed files (icons, manifest) change, so old copies are dropped.
+const CACHE = 'jeea-v2';
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', './index.html', './favicon.svg', './manifest.webmanifest'])).then(() => self.skipWaiting()));
@@ -36,13 +37,30 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
+  // Icons and the manifest keep their names between releases: network first,
+  // so a new logo shows up; the cached copy is only for offline use.
+  if (/\.(png|svg|webmanifest)$/.test(url.pathname) && !url.pathname.includes('/assets/')) {
+    e.respondWith(
+      fetch(req)
+        .then((res) => {
+          if (res.ok) {
+            const copy = res.clone();
+            caches.open(CACHE).then((c) => c.put(req, copy));
+          }
+          return res;
+        })
+        .catch(() => caches.match(req)),
+    );
+    return;
+  }
+
   // Hashed build assets never change: cache first.
   e.respondWith(
     caches.match(req).then(
       (hit) =>
         hit ||
         fetch(req).then((res) => {
-          if (res.ok && (url.pathname.includes('/assets/') || /\.(png|svg|webmanifest)$/.test(url.pathname))) {
+          if (res.ok && url.pathname.includes('/assets/')) {
             const copy = res.clone();
             caches.open(CACHE).then((c) => c.put(req, copy));
           }

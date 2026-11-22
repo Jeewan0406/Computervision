@@ -13,6 +13,9 @@ globalThis.fetch = async (url, init = {}) => {
   if (u === 'https://openrouter.ai/api/v1/models') {
     return new Response(JSON.stringify({ data: [{ id: 'meta-llama/llama-3.3-70b-instruct:free' }, { id: 'openai/gpt-5' }] }));
   }
+  if (u === 'https://api.tavily.com/search') {
+    return new Response(JSON.stringify({ results: [{ title: 'Bhutan news', url: 'https://example.org/bt', content: 'Fresh text', published_date: '2026-11-21', score: 0.9 }, { url: 'https://bad.example' }] }));
+  }
   if (u.endsWith('/chat/completions')) {
     return new Response('data: {"choices":[{"delta":{"content":"Hi"}}]}\n\ndata: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } });
   }
@@ -105,4 +108,25 @@ test('Workers AI non-streaming reply and missing binding', async () => {
   const noAI = await worker.fetch(req('/v1/chat/completions', { method: 'POST', body: JSON.stringify({ model: 'cloudflare:@cf/qwen/qwq-32b', messages: [] }) }, SITE, '7.7.7.9'), { ALLOWED_ORIGINS: SITE });
   assert.equal(noAI.status, 400);
   assert.match((await noAI.json()).error.message, /Workers AI binding/);
+});
+
+test('web search: 501 without a key; with a key calls Tavily with the secret and returns clean results', async () => {
+  const body = JSON.stringify({ query: 'Bhutan election', max_results: 50, topic: 'news' });
+  const none = await worker.fetch(req('/v1/search', { method: 'POST', body }, SITE, '5.5.5.1'), env);
+  assert.equal(none.status, 501);
+  seen.length = 0;
+  const env2 = { ...env, TAVILY_API_KEY: 'tvly-secret' };
+  const r = await worker.fetch(req('/v1/search', { method: 'POST', body }, SITE, '5.5.5.2'), env2);
+  assert.equal(r.status, 200);
+  assert.equal(r.headers.get('Access-Control-Allow-Origin'), SITE);
+  const text = await r.text();
+  assert.ok(!text.includes('tvly-secret'));
+  assert.deepEqual(JSON.parse(text).results, [{ title: 'Bhutan news', url: 'https://example.org/bt', content: 'Fresh text', published_date: '2026-11-21' }]);
+  const call = seen.find((c) => c.url === 'https://api.tavily.com/search');
+  assert.equal(call.auth, 'Bearer tvly-secret');
+  assert.equal(call.body.query, 'Bhutan election');
+  assert.equal(call.body.max_results, 8);
+  assert.equal(call.body.topic, 'news');
+  // Other websites are refused here too.
+  assert.equal((await worker.fetch(req('/v1/search', { method: 'POST', body }, 'https://evil.example'), env2)).status, 403);
 });

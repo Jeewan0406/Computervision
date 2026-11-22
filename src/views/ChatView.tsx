@@ -6,6 +6,7 @@ import { useSettings, getProvider, isUsable, modelLabel } from '../lib/settings'
 import { useUI } from '../lib/ui';
 import { stopJobs } from '../lib/runner';
 import { streamReply } from '../lib/reply';
+import { prepareWeb, joinSystem } from '../lib/webrun';
 import { splitThink } from '../lib/text';
 import { downloadText, titleFrom, uid } from '../lib/utils';
 import type { ChatMsg } from '../lib/llm';
@@ -13,6 +14,7 @@ import { TopBar, ParamsButton } from '../components/Shell';
 import { ModelPicker } from '../components/ModelPicker';
 import { MessageItem } from '../components/Message';
 import { Composer } from '../components/Composer';
+import { WebToggle } from '../components/Web';
 import { LogoMark, Wordmark } from '../components/Logo';
 import { useAutoScroll } from '../components/hooks';
 
@@ -33,15 +35,39 @@ async function ask(sessionId: string) {
   if (!s) return;
   const history = s.messages.slice();
   const asstId = uid();
-  useData.getState().update(sessionId, (x) => {
+  const { update } = useData.getState();
+  const patch = (fn: (m: Message) => void) =>
+    update(sessionId, (x) => {
+      const m = (x as ChatSession).messages.find((y) => y.id === asstId);
+      if (m) fn(m);
+    }, false);
+  update(sessionId, (x) => {
     (x as ChatSession).messages.push({ id: asstId, role: 'assistant', content: '', model: s.model, status: 'streaming', createdAt: Date.now() });
   });
+  // Auto web search: fresh facts for questions that need them.
+  const users = history.filter((m) => m.role === 'user');
+  const w = await prepareWeb(users[users.length - 1]?.content ?? '', {
+    jobId: `${sessionId}:${asstId}`,
+    feature: 'chat',
+    previous: users[users.length - 2]?.content,
+    onStart: (info) => patch((m) => {
+      m.web = info;
+      m.statusText = `Searching the web for “${info.query}”…`;
+    }),
+  });
+  patch((m) => {
+    m.web = w.web;
+    m.sources = w.sources;
+    m.statusText = undefined;
+    if (w.aborted) m.status = 'stopped';
+  });
+  if (w.aborted) return;
   await streamReply({
     sessionId,
     jobId: `${sessionId}:${asstId}`,
     locate: (x) => (x as ChatSession).messages.find((m) => m.id === asstId),
     ref: s.model,
-    messages: toApiMessages(s.system, history),
+    messages: toApiMessages(joinSystem(s.system, w.prompt), history),
     params: s.params,
     feature: 'chat',
   });
@@ -130,7 +156,7 @@ export function ChatView() {
 
   const exportMd = () => {
     if (!session) return;
-    const md = [`# ${session.title}`, '', ...session.messages.map((m) => `**${m.role === 'user' ? 'You' : `${m.model?.model ?? 'AI'}`}:**\n\n${m.content}\n`)].join('\n');
+    const md = [`# ${session.title}`, '', ...session.messages.map((m) => `**${m.role === 'user' ? 'You' : `${m.model?.model ?? 'AI'}`}:**\n\n${m.content}\n${m.sources?.length ? `\nSources:\n${m.sources.map((x) => `${x.n}. [${x.title}](${x.url})${x.date ? ` (${x.date})` : ''}`).join('\n')}\n` : ''}`)].join('\n');
     downloadText(`${session.title.replace(/[^\w-]+/g, '_').slice(0, 40) || 'chat'}.md`, md, 'text/markdown');
   };
 
@@ -188,10 +214,13 @@ export function ChatView() {
         onStop={() => session && stopJobs(session.id)}
         placeholder={`Message ${modelLabel(model)}…`}
         left={
-          <ModelPicker size="sm"
+          <>
+            <ModelPicker size="sm"
               value={model}
               onChange={(r) => (session ? update(session.id, (x) => void ((x as ChatSession).model = r), false) : setDraftModel(r))}
             />
+            <WebToggle />
+          </>
         }
       />
     </div>

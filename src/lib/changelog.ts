@@ -1,5 +1,5 @@
 /** In-app release log ("What's new"). Mirrors CHANGELOG.md. */
-export const APP_VERSION = '1.3.0';
+export const APP_VERSION = '1.4.0';
 
 export interface Release {
   version: string;
@@ -9,6 +9,19 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
+  {
+    version: '1.4.0',
+    date: '2026-11-22',
+    title: 'Answers with fresh facts from the web',
+    items: [
+      { tag: 'new', feature: 'Web: Auto', text: 'JeeA! now decides by itself when a question needs up-to-date facts (news, dates, prices, people in office, versions, results) and searches the web before the model answers. No button to press. The 🌐 button in the chat box switches between Auto, On (every message) and Off.' },
+      { tag: 'new', feature: 'Sources', text: 'Answers that used the web show numbered source chips you can open, and the [1], [2] marks in the answer link to them. Works in Chat, Compare (one search shared by all models) and Team (shared by every role).' },
+      { tag: 'new', feature: 'Free sources', text: 'Wikipedia articles, plus Wikipedia\'s "In the news" and daily "Current events" pages for news questions. No key needed.' },
+      { tag: 'new', feature: 'JeeA Gateway', text: 'New /v1/search endpoint: the site owner can add full web search (Tavily) with a secret key; results are cached for 10 minutes and limited per visitor.' },
+      { tag: 'improved', feature: 'Date awareness', text: 'Every chat now tells the model today\'s date and your time zone, so "today" and "this year" questions are answered correctly.' },
+      { tag: 'improved', feature: 'Logo', text: 'A cleaner logo: a bold "J!" speech bubble on a maroon-to-saffron tile, readable even as a 16-pixel browser icon.' },
+    ],
+  },
   {
     version: '1.3.0',
     date: '2026-11-22',

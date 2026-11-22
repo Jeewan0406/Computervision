@@ -6,6 +6,8 @@ import { usableModelRefs } from '../lib/settings';
 import { useUI } from '../lib/ui';
 import { stopJobs } from '../lib/runner';
 import { streamReply } from '../lib/reply';
+import { prepareWeb } from '../lib/webrun';
+import { linkCitations } from '../lib/web';
 import { MODE_INFO, TEAM_PRESETS, newStep, planTeam, presetRoles } from '../lib/team';
 import { splitThink } from '../lib/text';
 import { titleFrom, uid } from '../lib/utils';
@@ -13,6 +15,7 @@ import { TopBar } from '../components/Shell';
 import { ModelPicker, ModelBadge } from '../components/ModelPicker';
 import { Markdown, Metrics, Reasoning, TypingDots } from '../components/Message';
 import { Composer } from '../components/Composer';
+import { SourcesBar, WebToggle } from '../components/Web';
 import { useAutoScroll } from '../components/hooks';
 
 const COLORS = ['#8b5cf6', '#06b6d4', '#f59e0b', '#10b981', '#ec4899', '#3b82f6', '#ef4444'];
@@ -28,10 +31,29 @@ function freshDraft(): TeamDraft {
 /** Run every wave of the plan; steps inside a wave run in parallel. */
 async function executeRun(sid: string, runId: string, input: string) {
   const { update } = useData.getState();
-  const s = useData.getState().sessions[sid] as TeamSession;
-  const waves = planTeam(s, input);
-  const done: { step: TeamStep; content: string }[] = [];
   const findRun = (x: TeamSession) => x.runs.find((r) => r.id === runId);
+  const s0 = useData.getState().sessions[sid] as TeamSession;
+  // Auto web search once per run; every role gets the same results.
+  const w = await prepareWeb(input, {
+    jobId: `${sid}:${runId}`,
+    feature: 'team',
+    previous: s0.runs[s0.runs.length - 2]?.input,
+    onStart: (info) => update(sid, (x) => {
+      const run = findRun(x as TeamSession);
+      if (run) run.web = info;
+    }, false),
+  });
+  update(sid, (x) => {
+    const run = findRun(x as TeamSession);
+    if (!run) return;
+    run.web = w.web;
+    run.sources = w.sources;
+    if (w.aborted) run.status = 'stopped';
+  }, false);
+  if (w.aborted) return;
+  const s = useData.getState().sessions[sid] as TeamSession;
+  const waves = planTeam(s, input, w.prompt);
+  const done: { step: TeamStep; content: string }[] = [];
   let failed = false;
 
   for (const wave of waves) {
@@ -108,7 +130,7 @@ function RoleCard({ role, index, total, onChange, onMove, onRemove, mode }: {
   );
 }
 
-function StepCard({ step, final }: { step: TeamStep; final: boolean }) {
+function StepCard({ step, final, sources }: { step: TeamStep; final: boolean; sources?: TeamRun['sources'] }) {
   const m = step.message;
   const [collapsed, setCollapsed] = useState(false);
   const split = m.reasoning ? { reasoning: m.reasoning, answer: m.content } : splitThink(m.content);
@@ -128,7 +150,7 @@ function StepCard({ step, final }: { step: TeamStep; final: boolean }) {
           <>
             <Reasoning text={split.reasoning} streaming={m.status === 'streaming' && !split.answer} />
             {m.statusText && <div className="status-line"><span className="pulse-dot" />{m.statusText}</div>}
-            {split.answer ? <Markdown text={split.answer} /> : m.status === 'streaming' ? <TypingDots /> : null}
+            {split.answer ? <Markdown text={linkCitations(split.answer, sources)} /> : m.status === 'streaming' ? <TypingDots /> : null}
             {m.status === 'error' && <div className="msg-error"><span>{m.error}</span></div>}
             {m.status === 'stopped' && <div className="muted xs">Stopped.</div>}
             {m.status === 'done' && <Metrics m={m} />}
@@ -146,10 +168,14 @@ function RunView({ run }: { run: TeamRun }) {
       <div className="run-task">
         <span className="run-label">Task · {MODE_INFO[run.mode].label}</span>
         <div>{run.input}</div>
+        {run.status === 'running' && run.web && !run.sources && !run.web.note && !run.steps.length && (
+          <div className="status-line"><span className="pulse-dot" />Searching the web for “{run.web.query}”…</div>
+        )}
+        {(run.sources || run.web?.note) && <SourcesBar sources={run.sources} web={run.web} />}
       </div>
       <div className="timeline">
         {run.steps.map((st) => (
-          <StepCard key={st.id} step={st} final={st.id === lastId && run.status !== 'running'} />
+          <StepCard key={st.id} step={st} sources={run.sources} final={st.id === lastId && run.status !== 'running'} />
         ))}
         {run.status === 'running' && run.steps.every((s) => s.message.status !== 'streaming') && (
           <div className="step"><div className="step-dot">⏳</div><div className="step-card"><TypingDots /></div></div>
@@ -303,7 +329,7 @@ export function TeamView() {
         </div>
       </div>
 
-      <Composer onSend={send} busy={busy} onStop={() => session && stopJobs(session.id)} placeholder="Give your team a task…" />
+      <Composer onSend={send} busy={busy} onStop={() => session && stopJobs(session.id)} placeholder="Give your team a task…" left={<WebToggle />} />
     </div>
   );
 }

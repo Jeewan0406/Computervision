@@ -6,6 +6,7 @@ import { useSettings, usableModelRefs, modelKey, allProviders } from '../lib/set
 import { useUI } from '../lib/ui';
 import { stopJobs } from '../lib/runner';
 import { streamReply } from '../lib/reply';
+import { prepareWeb, joinSystem, type WebResult } from '../lib/webrun';
 import { splitThink } from '../lib/text';
 import { fmtMs, titleFrom, uid } from '../lib/utils';
 import { TopBar, ParamsButton } from '../components/Shell';
@@ -13,6 +14,8 @@ import { ModelPicker } from '../components/ModelPicker';
 import { MessageItem, Markdown, Metrics, Reasoning, TypingDots } from '../components/Message';
 import { Composer } from '../components/Composer';
 import { toApiMessages } from './ChatView';
+import { SourcesBar, WebToggle } from '../components/Web';
+import { linkCitations } from '../lib/web';
 
 const MAX_LANES = 6;
 
@@ -64,23 +67,57 @@ export function CompareView() {
     } else setDraft(draft.filter((_, j) => j !== i));
   };
 
-  const runLane = (sid: string, laneId: string) => {
+  /** Stream one lane's answer into its waiting placeholder message. */
+  const runLane = (sid: string, laneId: string, asstId: string, w: WebResult) => {
     const s = useData.getState().sessions[sid] as CompareSession;
     const lane = s.lanes.find((l) => l.id === laneId)!;
-    const history = lane.messages.slice();
-    const asstId = uid();
-    update(sid, (x) => {
-      (x as CompareSession).lanes.find((l) => l.id === laneId)?.messages.push({ id: asstId, role: 'assistant', content: '', model: lane.model, status: 'streaming', createdAt: Date.now() });
-    });
+    const history = lane.messages.filter((m) => m.id !== asstId);
     return streamReply({
       sessionId: sid,
       jobId: `${sid}:${laneId}:${asstId}`,
       locate: (x) => (x as CompareSession).lanes.find((l) => l.id === laneId)?.messages.find((m) => m.id === asstId),
       ref: lane.model,
-      messages: toApiMessages(s.system, history),
+      messages: toApiMessages(joinSystem(s.system, w.prompt), history),
       params: s.params,
       feature: 'compare',
     });
+  };
+
+  /** One web search for the round, shared by every lane, then all lanes run. */
+  const runRound = async (sid: string, text: string) => {
+    const s0 = useData.getState().sessions[sid] as CompareSession;
+    const ids = new Map(s0.lanes.map((l) => [l.id, uid()]));
+    const users = s0.lanes[0]?.messages.filter((m) => m.role === 'user') ?? [];
+    const patchAll = (fn: (m: Message) => void) =>
+      update(sid, (x) => {
+        for (const l of (x as CompareSession).lanes) {
+          const m = l.messages.find((y) => y.id === ids.get(l.id));
+          if (m) fn(m);
+        }
+      }, false);
+    update(sid, (x) => {
+      for (const l of (x as CompareSession).lanes) {
+        const id = ids.get(l.id);
+        if (id) l.messages.push({ id, role: 'assistant', content: '', model: l.model, status: 'streaming', createdAt: Date.now() });
+      }
+    });
+    const w = await prepareWeb(text, {
+      jobId: `${sid}:round`,
+      feature: 'compare',
+      previous: users[users.length - 2]?.content,
+      onStart: (info) => patchAll((m) => {
+        m.web = info;
+        m.statusText = `Searching the web for “${info.query}”…`;
+      }),
+    });
+    patchAll((m) => {
+      m.web = w.web;
+      m.sources = w.sources;
+      m.statusText = undefined;
+      if (w.aborted) m.status = 'stopped';
+    });
+    if (w.aborted) return;
+    await Promise.all([...ids].map(([laneId, asstId]) => runLane(sid, laneId, asstId, w)));
   };
 
   const send = (text: string) => {
@@ -100,8 +137,7 @@ export function CompareView() {
       c.judge = c.judge ? { model: c.judge.model } : undefined;
       for (const l of c.lanes) l.messages.push({ id: uid(), role: 'user', content: text, createdAt: Date.now() });
     });
-    const s = useData.getState().sessions[sid] as CompareSession;
-    s.lanes.forEach((l) => void runLane(sid, l.id));
+    void runRound(sid, text);
   };
 
   const vote = (turn: number, laneId: string) => {
@@ -202,7 +238,8 @@ export function CompareView() {
                       <div key={m.id} className={`lane-a${winner === lane.id ? ' winner' : ''}`}>
                         <Reasoning text={split.reasoning} streaming={m.status === 'streaming' && !split.answer} />
                         {m.statusText && <div className="status-line"><span className="pulse-dot" />{m.statusText}</div>}
-                        {split.answer ? <Markdown text={split.answer} /> : m.status === 'streaming' ? <TypingDots /> : null}
+                        {split.answer ? <Markdown text={linkCitations(split.answer, m.sources)} /> : m.status === 'streaming' && !m.statusText ? <TypingDots /> : null}
+                        {(m.sources || (m.status !== 'streaming' && m.web?.note)) && <SourcesBar sources={m.sources} web={m.web} />}
                         {m.status === 'error' && <div className="msg-error"><span>{m.error}</span></div>}
                         {m.status === 'done' && (
                           <div className="lane-foot">
@@ -246,7 +283,7 @@ export function CompareView() {
         </div>
       )}
 
-      <Composer onSend={send} busy={busy} onStop={() => session && stopJobs(session.id)} placeholder="Ask all models the same thing…" />
+      <Composer onSend={send} busy={busy} onStop={() => session && stopJobs(session.id)} placeholder="Ask all models the same thing…" left={<WebToggle />} />
     </div>
   );
 }

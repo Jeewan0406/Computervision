@@ -4,6 +4,7 @@ import type { ModelRef, ProviderDef, Slot } from './types';
 import { BUILTIN_PROVIDERS, GATEWAY_ID, KEYLESS_ID } from './providers';
 import { prettyModel, isFreeModel, routeLabel } from './models';
 import { uid } from './utils';
+import type { WebMode } from './web';
 
 export type Theme = 'system' | 'dark' | 'light';
 export type Accent = 'druk' | 'violet' | 'blue' | 'emerald' | 'rose' | 'amber';
@@ -26,6 +27,8 @@ export interface Settings {
   seenVersion: string;
   /** "owner/repo" that runs the 24/7 GitHub agents (auto-detected on github.io). */
   agentRepo: string;
+  /** Web search: 'auto' decides per message, 'on' always, 'off' never. */
+  webMode: WebMode;
 }
 
 interface SettingsActions {
@@ -55,6 +58,7 @@ const initial: Settings = {
   leaderboard: {},
   seenVersion: '',
   agentRepo: '',
+  webMode: 'auto',
 };
 
 const SESSION_KEYS = 'jeea.keys.session';

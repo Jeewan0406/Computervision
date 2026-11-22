@@ -1,0 +1,67 @@
+// App side of the automatic web search: reads the setting, runs the search
+// as a stoppable job, logs it and builds the system text for the model.
+import type { View } from './types';
+import { dateLine, searchQuery, webDecision, webPrompt, webSearch, type WebSource } from './web';
+import { gatewayInfo, useSettings } from './settings';
+import { endJob, startJob } from './runner';
+import { log } from './logs';
+import { isAbort } from './utils';
+
+export interface WebInfo {
+  query: string;
+  at: number;
+  /** Shown when nothing useful was found. */
+  note?: string;
+}
+
+export interface WebResult {
+  /** System text: always the date; plus the numbered results when searched. */
+  prompt: string;
+  web?: WebInfo;
+  sources?: WebSource[];
+  aborted?: boolean;
+}
+
+/**
+ * Search the web for a message when the Web setting allows it ("Auto" decides
+ * by itself). Never throws: a failed search just returns the date line.
+ */
+export async function prepareWeb(
+  text: string,
+  opts: { jobId: string; feature: View; previous?: string; onStart?: (info: WebInfo) => void },
+): Promise<WebResult> {
+  const mode = useSettings.getState().webMode;
+  const d = webDecision(text, mode);
+  if (!d.search) return { prompt: dateLine() };
+  const query = searchQuery(text, opts.previous);
+  const info: WebInfo = { query, at: Date.now() };
+  opts.onStart?.(info);
+  const ctrl = startJob(`${opts.jobId}:web`);
+  const t0 = performance.now();
+  try {
+    const gw = gatewayInfo();
+    const { sources, errors } = await webSearch({
+      query,
+      news: d.news,
+      gateway: gw ? gw.baseUrl.replace(/\/v1$/, '') : null,
+      signal: ctrl.signal,
+    });
+    const ms = Math.round(performance.now() - t0);
+    log({
+      level: sources.length ? 'info' : 'warn',
+      type: 'system',
+      feature: opts.feature,
+      message: `Web search "${query}" (${d.reason}): ${sources.length} result${sources.length === 1 ? '' : 's'} in ${ms} ms${errors.length ? `; failed: ${errors.join('; ')}` : ''}`,
+    });
+    const note = sources.length ? undefined : errors.length ? 'the search could not be reached' : 'no useful results';
+    return { prompt: webPrompt(query, sources), web: { ...info, note }, sources: sources.length ? sources : undefined };
+  } catch (e) {
+    if (isAbort(e) || ctrl.signal.aborted) return { prompt: '', web: info, aborted: true };
+    return { prompt: dateLine(), web: { ...info, note: 'the search failed' } };
+  } finally {
+    endJob(`${opts.jobId}:web`);
+  }
+}
+
+/** The user's system prompt plus the web/date text. */
+export const joinSystem = (system: string, web: string) => [system.trim(), web].filter(Boolean).join('\n\n');

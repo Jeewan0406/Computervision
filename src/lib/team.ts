@@ -108,9 +108,10 @@ export interface PlannedStep {
 }
 
 /** Turn a team into ordered "waves"; steps in the same wave run in parallel. */
-export function planTeam(session: Pick<TeamSession, 'mode' | 'rounds' | 'roles'>, input: string): PlannedStep[][] {
+export function planTeam(session: Pick<TeamSession, 'mode' | 'rounds' | 'roles'>, input: string, background = ''): PlannedStep[][] {
   const roles = session.roles;
-  const task = `## Task\n${input}`;
+  // Background = today's date and any web results, shared by every role.
+  const task = `## Task\n${input}${background.trim() ? `\n\n## Background (from JeeA!)\n${background.trim()}` : ''}`;
   if (!roles.length) return [];
 
   if (session.mode === 'moa' && roles.length >= 2) {

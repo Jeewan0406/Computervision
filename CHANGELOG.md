@@ -2,6 +2,18 @@
 
 All notable changes to JeeA! are listed here. The same notes appear in the app under **What's new** (✨).
 
+## 1.4.0 — 2026-11-22 — Answers with fresh facts from the web
+
+### New
+- **Web: Auto** — JeeA! decides by itself when a question needs up-to-date facts (news, dates, prices, people in office, versions, results) and searches before the model answers. A 🌐 button in the chat box switches between Auto, On (every message) and Off; the same choice is in Settings → Web search.
+- **Sources** — answers that used the web show numbered source chips, and the [1], [2] marks in the answer link to them. Works in Chat, Compare (one search shared by every model) and Team (the same results go to every role). The search can be stopped with the Stop button.
+- **Free sources** — Wikipedia article intros, plus Wikipedia's "In the news" and daily "Current events" pages for news questions, through MediaWiki's keyless `origin=*` mode.
+- **JeeA Gateway** — new `POST /v1/search` endpoint: with the secret `TAVILY_API_KEY`, the site owner adds full web search for every visitor, cached for 10 minutes and limited per visitor (`SEARCH_PER_MINUTE`, default 6). Returns 501 when no key is set, and the app then uses Wikipedia only.
+
+### Improved
+- **Date awareness** — every Chat, Compare and Team request now tells the model today's date and the user's time zone.
+- **Logo** — redrawn with far fewer shapes: a bold "J!" speech bubble in gold on a dzong-maroon tile, with a strip of the five prayer-flag colours. Readable as a 16-pixel browser icon. App icons regenerated.
+
 ## 1.3.0 — 2026-11-22 — Bhutan colours and more free models
 
 ### New
