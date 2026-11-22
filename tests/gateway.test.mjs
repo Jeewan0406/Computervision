@@ -68,3 +68,41 @@ test('answers CORS preflight', async () => {
   assert.equal(r.status, 204);
   assert.match(r.headers.get('Access-Control-Allow-Headers'), /Content-Type/);
 });
+
+// ---- Cloudflare Workers AI binding (no extra key) ----
+const fakeAI = {
+  calls: [],
+  async run(model, params) {
+    this.calls.push({ model, params });
+    if (!params.stream) return { response: 'Namaste', usage: { prompt_tokens: 5, completion_tokens: 2, total_tokens: 7 } };
+    const text = 'data: {"response":"Kuzu"}\n\ndata: {"response":"zangpo"}\n\ndata: {"response":"","usage":{"prompt_tokens":5,"completion_tokens":2}}\n\ndata: [DONE]\n\n';
+    return new Blob([text]).stream();
+  },
+};
+const envAI = { AI: fakeAI, ALLOWED_ORIGINS: 'https://jeewan0406.github.io', PER_MINUTE: '50' };
+
+test('Workers AI models are listed when the AI binding exists', async () => {
+  const ids = (await (await worker.fetch(req('/v1/models'), envAI)).json()).data.map((m) => m.id);
+  assert.ok(ids.includes('cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast'));
+  assert.equal(ids.filter((i) => i.startsWith('cloudflare:')).length, 7);
+});
+
+test('Workers AI stream is translated to OpenAI-style chunks', async () => {
+  const r = await worker.fetch(req('/v1/chat/completions', { method: 'POST', body: JSON.stringify({ model: 'cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast', messages: [{ role: 'user', content: 'hi' }], stream: true }) }, SITE, '7.7.7.7'), envAI);
+  assert.equal(r.status, 200);
+  const text = await r.text();
+  const deltas = text.split('\n').filter((l) => l.startsWith('data: {')).map((l) => JSON.parse(l.slice(6)));
+  assert.equal(deltas.filter((d) => d.choices?.[0]?.delta?.content).map((d) => d.choices[0].delta.content).join(''), 'Kuzuzangpo');
+  assert.ok(deltas.some((d) => d.usage?.completion_tokens === 2));
+  assert.match(text, /data: \[DONE\]/);
+  assert.equal(fakeAI.calls.at(-1).params.max_tokens, 4096);
+});
+
+test('Workers AI non-streaming reply and missing binding', async () => {
+  const r = await worker.fetch(req('/v1/chat/completions', { method: 'POST', body: JSON.stringify({ model: 'cloudflare:@cf/qwen/qwq-32b', messages: [] }) }, SITE, '7.7.7.8'), envAI);
+  const j = await r.json();
+  assert.equal(j.choices[0].message.content, 'Namaste');
+  const noAI = await worker.fetch(req('/v1/chat/completions', { method: 'POST', body: JSON.stringify({ model: 'cloudflare:@cf/qwen/qwq-32b', messages: [] }) }, SITE, '7.7.7.9'), { ALLOWED_ORIGINS: SITE });
+  assert.equal(noAI.status, 400);
+  assert.match((await noAI.json()).error.message, /Workers AI binding/);
+});

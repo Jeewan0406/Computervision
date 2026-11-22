@@ -18,14 +18,15 @@ const FAMILY: Record<string, string> = {
 };
 
 const UPPER = new Set(['oss', 'vl', 'r1', 'r2', 'v2', 'v3', 'v4', 'ai', 'it', 'moe', 'xl', 'xxl', 'a', 'r', 'sql']);
-const DROP = new Set(['instruct', 'it', 'hf', 'versatile', 'latest', 'meta', 'base', 'fp8', 'gguf', 'awq', 'free']);
+const DROP = new Set(['instruct', 'it', 'hf', 'versatile', 'latest', 'meta', 'base', 'fp8', 'gguf', 'awq', 'free', 'cloud']);
 
-const ROUTES = /^(nvidia|groq|gemini|openrouter|cerebras|mistral|sambanova|together|huggingface|cohere|deepseek|xai|openai|anthropic):/i;
+const ROUTES = /^(nvidia|groq|gemini|openrouter|cerebras|mistral|sambanova|together|huggingface|cohere|deepseek|xai|openai|anthropic|cloudflare|ollama|zai|siliconflow|ovh):/i;
 
 const ROUTE_LABEL: Record<string, string> = {
   nvidia: 'NVIDIA', groq: 'Groq', gemini: 'Gemini', openrouter: 'OpenRouter', cerebras: 'Cerebras', mistral: 'Mistral',
   sambanova: 'SambaNova', together: 'Together', huggingface: 'Hugging Face', cohere: 'Cohere', deepseek: 'DeepSeek',
-  xai: 'xAI', openai: 'OpenAI', anthropic: 'Anthropic',
+  xai: 'xAI', openai: 'OpenAI', anthropic: 'Anthropic', cloudflare: 'Cloudflare', ollama: 'Ollama Cloud', zai: 'Z.ai',
+  siliconflow: 'SiliconFlow', ovh: 'OVHcloud',
 };
 
 /** Source of a gateway model id: "nvidia:meta/llama…" -> "NVIDIA". */
@@ -76,9 +77,10 @@ export function prettyModel(id: string): string {
 
 /** Is this model free to use? Keyless, free-tier and local providers are;
  * on OpenRouter-style providers only ids ending in ":free" are. */
-export function isFreeModel(provider: { access: string; freeSuffixOnly?: boolean } | undefined, model: string): boolean {
+export function isFreeModel(provider: { access: string; freeSuffixOnly?: boolean; freeModels?: string[] } | undefined, model: string): boolean {
   if (/:free$/i.test(model)) return true;
   if (!provider) return false;
   if (provider.freeSuffixOnly) return false;
+  if (provider.freeModels) return provider.freeModels.includes(model);
   return provider.access === 'keyless' || provider.access === 'free-tier' || provider.access === 'local';
 }

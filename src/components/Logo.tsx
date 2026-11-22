@@ -1,24 +1,40 @@
+import { useId } from 'react';
+
 /**
  * JeeA! logo: a chat bubble holding three connected nodes, one per AI model,
  * on a violet-to-cyan gradient. It says "many models, one conversation".
  */
+/**
+ * JeeA! logo: a chat bubble holding three connected nodes (many AI models,
+ * one conversation) with a small gold jewel at the centre, under a string of
+ * the five prayer-flag colours, on a saffron-to-maroon tile inspired by
+ * Bhutanese colours.
+ */
 export function LogoMark({ size = 32, className = '' }: { size?: number; className?: string }) {
+  const id = useId().replace(/:/g, '');
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" className={className} aria-hidden="true">
       <defs>
-        <linearGradient id="jeea-g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#8B5CF6" />
-          <stop offset="0.55" stopColor="#6366F1" />
-          <stop offset="1" stopColor="#06B6D4" />
+        <linearGradient id={`jg${id}`} x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor="#FFC93C" />
+          <stop offset="0.42" stopColor="#F08A24" />
+          <stop offset="0.74" stopColor="#C24A0E" />
+          <stop offset="1" stopColor="#8B1E2D" />
         </linearGradient>
       </defs>
-      <rect width="64" height="64" rx="16" fill="url(#jeea-g)" />
-      <path d="M17 15h30a7 7 0 0 1 7 7v15a7 7 0 0 1-7 7H31l-10 8v-8h-4a7 7 0 0 1-7-7V22a7 7 0 0 1 7-7z" fill="#fff" />
-      <path d="M22 33 32 24 42 33" fill="none" stroke="#C7D2FE" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-      <path d="M22 33h20" fill="none" stroke="#C7D2FE" strokeWidth="2.5" strokeLinecap="round" />
-      <circle cx="22" cy="33" r="4.5" fill="#8B5CF6" />
-      <circle cx="32" cy="24" r="4.5" fill="#EC4899" />
-      <circle cx="42" cy="33" r="4.5" fill="#06B6D4" />
+      <rect width="64" height="64" rx="15" fill={`url(#jg${id})`} />
+      <path d="M7 8.5 Q32 13 57 8.5" fill="none" stroke="#FFF8EE" strokeOpacity="0.85" strokeWidth="0.9" />
+      <path d="M10.5 9.1h7l-1.2 5.2h-6z" fill="#1F5AA6" />
+      <path d="M19.8 10.3h7l-1.1 5.1h-6z" fill="#FFFFFF" />
+      <path d="M29.1 10.8h7l-1 5h-6z" fill="#C8102E" />
+      <path d="M38.4 10.3h7l-1.1 5.1h-6z" fill="#1E8A4C" />
+      <path d="M47.7 9.1h7l-1.2 5.2h-6z" fill="#FFD100" />
+      <path d="M18 20h28a7 7 0 0 1 7 7v13a7 7 0 0 1-7 7H31l-9.5 7.5V47H18a7 7 0 0 1-7-7V27a7 7 0 0 1 7-7z" fill="#FFF8EE" />
+      <path d="M22.5 38 32 27.5 41.5 38Z" fill="none" stroke="#8B1E2D" strokeOpacity="0.4" strokeWidth="2.2" strokeLinejoin="round" />
+      <circle cx="22.5" cy="38" r="4.4" fill="#1F5AA6" />
+      <circle cx="32" cy="27.5" r="4.4" fill="#C8102E" />
+      <circle cx="41.5" cy="38" r="4.4" fill="#1E8A4C" />
+      <path d="M32 31.6 34.6 34.4 32 37.2 29.4 34.4Z" fill="#F5B301" stroke="#8B1E2D" strokeWidth="0.8" />
     </svg>
   );
 }

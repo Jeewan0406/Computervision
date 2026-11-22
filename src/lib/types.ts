@@ -40,6 +40,8 @@ export interface ProviderDef {
   nativeTools?: boolean;
   /** Provider whose models are free only when the id ends with ":free". */
   freeSuffixOnly?: boolean;
+  /** When set, only these model ids are free on this provider. */
+  freeModels?: string[];
 }
 
 export type SlotStatus = 'unknown' | 'ok' | 'error' | 'cooldown';

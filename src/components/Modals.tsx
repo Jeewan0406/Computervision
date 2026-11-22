@@ -25,7 +25,8 @@ function Modal({ title, onClose, children, wide }: { title: ReactNode; onClose: 
   );
 }
 
-const ACCENTS: { id: Accent; color: string }[] = [
+const ACCENTS: { id: Accent; color: string; label?: string }[] = [
+  { id: 'druk', color: '#f08a24', label: 'Druk saffron (Bhutan)' },
   { id: 'violet', color: '#8b5cf6' },
   { id: 'blue', color: '#3b82f6' },
   { id: 'emerald', color: '#10b981' },
@@ -56,7 +57,7 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
           <span>Accent colour</span>
           <div className="swatches">
             {ACCENTS.map((a) => (
-              <button key={a.id} className={`swatch${s.accent === a.id ? ' active' : ''}`} style={{ background: a.color }} onClick={() => s.set({ accent: a.id })} aria-label={a.id} title={a.id} />
+              <button key={a.id} className={`swatch${s.accent === a.id ? ' active' : ''}`} style={{ background: a.color }} onClick={() => s.set({ accent: a.id })} aria-label={a.label ?? a.id} title={a.label ?? a.id} />
             ))}
           </div>
         </div>

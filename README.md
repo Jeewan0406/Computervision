@@ -24,12 +24,12 @@ Chat with many AI models in one beautiful app. Start free with no key, add your 
 | 🤖 **Agent** | Give a goal. The agent plans and uses tools step by step: Wikipedia search and reading, web pages, exact maths, a JavaScript sandbox, date and time, long-term memory, workspace files, creating web apps, and asking other models. Every step is shown and can be opened. |
 | ⏰ **24/7 agents** | Scheduled agents run on GitHub Actions in your repository, even when your computer is off, and save Markdown reports that the Agent page shows. |
 | 🆓 **Free models** | Works the moment the page opens: the shared Pollinations model needs no sign-up and no key. **Puter** adds hundreds of models (GPT, Claude, Gemini, Llama…) with a free Puter account. With the optional **JeeA Gateway**, the site owner can share free NVIDIA and other models with every visitor. Free models carry a green **Free** tag. |
-| 🔑 **API Slots** | Add as many keys as you like for 16 providers, or your own endpoint. Several keys for one provider are rotated, and a key that hits a rate limit is rested while the next one takes over. |
+| 🔑 **API Slots** | Add as many keys as you like for 19 providers, or your own endpoint. Several keys for one provider are rotated, and a key that hits a rate limit is rested while the next one takes over. |
 | ⚖️ **Compare** | Send one prompt to up to 6 models at once. See time to first token, total time, speed and tokens. Vote for the best answer, keep a personal leaderboard, or let an AI judge rank the anonymous answers. |
 | 👥 **Team** | Give different models different roles in one run. Three ways to work: **Pipeline** (one after another), **Mixture** (all answer, one merges) and **Debate** (argue in rounds, a judge decides). Five ready-made teams. |
 | 🧩 **CodeFrame** | Describe an app and watch the code being written, then run it in a locked sandbox. Editor, phone/tablet/desktop sizes, console with "ask the AI to fix these errors", version history, download. |
 | 📈 **Logs** | Every request is recorded: provider, model, key name, status, time to first token, total time and tokens. Charts, filters and CSV/JSON export. No keys or message text are stored in the log. |
-| 🎨 **Design** | Dark and light themes, 5 accent colours, works on phones, installable as an app (PWA), works offline after the first visit. |
+| 🎨 **Design** | A Bhutan-inspired "Druk" look: saffron, gold and maroon, a dzong-white light mode, a prayer-flag ribbon and a faint woven-textile pattern. Dark and light themes, 6 accent colours, works on phones, installable as an app (PWA), works offline after the first visit. |
 
 <table>
 <tr>
@@ -61,9 +61,10 @@ You can use any model a provider offers: JeeA! loads the live model list from th
 | Provider | Access | Notes |
 |---|---|---|
 | JeeA Free (Pollinations Classic) | Free, no key | One text model, one request per IP at a time, at least 45 seconds apart ([Pollinations docs](https://github.com/pollinations/pollinations/blob/master/APIDOCS.md)). Good for trying the app. |
+| OVHcloud AI Endpoints | Free, no key | Anonymous use: 2 requests per minute per IP and per model (OVHcloud's limit). Llama, Mistral, Qwen and more. |
 | Puter | Free, no key in JeeA! | Each person signs in with a free Puter account; usage counts against their own Puter allowance ("user pays"). Puter.js is bundled at a pinned version and loads only when chosen. |
 | JeeA Free+ (your gateway) | Free for visitors | Appears when `public/jeea.config.json` names your gateway. It uses **your** free keys (NVIDIA and others), so every visitor shares their limits. See below. |
-| Google Gemini · Groq · OpenRouter (":free" models) · Mistral · Cerebras · Hugging Face · Cohere · SambaNova · NVIDIA NIM | Free tier with a key | Free tiers and their limits are set by each provider and change often. Check the provider's page. NVIDIA may block direct browser calls; use the CORS proxy or the gateway. |
+| Google Gemini · Groq · OpenRouter (":free" models) · Mistral · Cerebras · Ollama Cloud · Z.ai (GLM flash models) · SiliconFlow (some models) · Hugging Face · Cohere · SambaNova · NVIDIA NIM | Free tier with a key | Free tiers and their limits are set by each provider and change often. Check the provider's page. NVIDIA may block direct browser calls; use the CORS proxy or the gateway. |
 | OpenAI · Anthropic Claude · DeepSeek · xAI Grok · Together AI | Paid key | |
 | Ollama · LM Studio | Runs on your computer | Turn on CORS in the local server (see the note in the app). |
 | Your own endpoint | Any | Any OpenAI-compatible `/chat/completions` server, or the Anthropic Messages format. |
@@ -75,7 +76,8 @@ No AI provider offers truly unlimited free use, and an API key placed in a publi
 1. Create a free Cloudflare account. In the dashboard, open **Workers & Pages → Create application**, pick the **Hello World** Worker template, name it `jeea-gateway`, and **Deploy**.
 2. Open the Worker, choose **Edit code**, replace everything with the contents of `proxy/jeea-gateway.js`, and **Deploy**.
 3. Open **Settings → Variables and Secrets → Add**. Add `NVIDIA_API_KEY` with type **Secret** (your key from build.nvidia.com). Optionally add `GROQ_API_KEY`, `GEMINI_API_KEY`, `CEREBRAS_API_KEY`, `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` as secrets, and `ALLOWED_ORIGINS` (type Text) = `https://<your-user>.github.io`. **Deploy**.
-4. Copy the Worker address (`https://jeea-gateway.<name>.workers.dev`) into `public/jeea.config.json` → `"gateway"`, and commit. After the site redeploys, every visitor sees **JeeA Free+** in the model picker.
+4. *(Free, no extra key)* In the Worker's **Settings**, look for **Bindings** and add a **Workers AI** binding named `AI` (the dashboard wording may differ slightly; with Wrangler it is `"ai": { "binding": "AI" }` in the config file). This adds Cloudflare Workers AI models (Llama 3.3 70B, Llama 4 Scout, Mistral Small 3.1, QwQ 32B, DeepSeek R1 Distill, Qwen 2.5 Coder, GPT-OSS 120B), which use Cloudflare's free allowance of 10,000 Neurons per day ([Cloudflare pricing docs](https://github.com/cloudflare/cloudflare-docs/blob/production/src/content/docs/workers-ai/platform/pricing.mdx)).
+5. Copy the Worker address (`https://jeea-gateway.<name>.workers.dev`) into `public/jeea.config.json` → `"gateway"`, and commit. After the site redeploys, every visitor sees **JeeA Free+** in the model picker.
 
 The visitors share your free limits, so for many users add more providers' keys or keep the per-minute limit low.
 
@@ -158,7 +160,7 @@ Requires Node.js 20.19+ or 22.12+ (CI uses Node 22).
 ```
 src/
   lib/            core logic
-    providers.ts    provider catalog (free model, Puter, 16 keyed providers)
+    providers.ts    provider catalog (3 no-key providers, 19 with keys)
     models.ts       friendly model names and Free detection
     llm.ts          streaming clients: OpenAI-compatible + Anthropic SDK
     runner.ts       key rotation, retries, cooldowns, fallback, logging

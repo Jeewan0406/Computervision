@@ -2,6 +2,13 @@
 
 All notable changes to JeeA! are listed here. The same notes appear in the app under **What's new** (✨).
 
+## 1.3.0 — 2026-11-22 — Bhutan colours and more free models
+
+### New
+- **Look** — new logo (a chat bubble with three connected model dots and a gold jewel, under the five prayer-flag colours, on a saffron-to-maroon tile) and a Bhutan-inspired **Druk** theme: saffron, gold and maroon, a dzong-white light mode, a prayer-flag ribbon along the top and a faint woven-textile pattern. All text colour pairs were checked for WCAG AA contrast. Existing users on the old default colour move to Druk; other accents remain in Settings.
+- **Free providers** — OVHcloud AI Endpoints (no key; 2 requests per minute per IP and per model), Ollama Cloud, Z.ai (GLM flash models) and SiliconFlow (some models free). Providers can now list exactly which models are free, so Free tags stay accurate.
+- **JeeA Gateway** — optional Cloudflare Workers AI binding: seven chat models on Cloudflare's free daily allowance with no extra key (streams translated to the OpenAI format), plus optional keys for SambaNova, Hugging Face, Cohere, Ollama Cloud, Z.ai, SiliconFlow and OVHcloud.
+
 ## 1.2.0 — 2026-11-22 — More free models, friendlier picker
 
 ### New

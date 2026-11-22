@@ -29,3 +29,12 @@ test('free detection', () => {
   assert.equal(isFreeModel({ access: 'free-tier', freeSuffixOnly: true }, 'openai/gpt-5'), false);
   assert.equal(isFreeModel({ access: 'free-tier', freeSuffixOnly: true }, 'meta-llama/llama-3.3-70b-instruct:free'), true);
 });
+
+test('per-model free lists and new routes', () => {
+  assert.equal(isFreeModel({ access: 'free-tier', freeModels: ['glm-4.7-flash'] }, 'glm-4.7-flash'), true);
+  assert.equal(isFreeModel({ access: 'free-tier', freeModels: ['glm-4.7-flash'] }, 'glm-5'), false);
+  assert.equal(prettyModel('cloudflare:@cf/meta/llama-3.3-70b-instruct-fp8-fast'), 'Llama 3.3 70B Fast');
+  assert.equal(prettyModel('Meta-Llama-3_3-70B-Instruct'), 'Llama 3.3 70B');
+  assert.equal(prettyModel('glm-4.7-flash'), 'GLM 4.7 Flash');
+  assert.equal(prettyModel('gpt-oss:20b'), 'GPT-OSS 20B');
+});

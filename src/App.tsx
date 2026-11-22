@@ -25,7 +25,7 @@ function useTheme() {
       const t = theme === 'system' ? (mq.matches ? 'dark' : 'light') : theme;
       document.documentElement.dataset.theme = t;
       document.documentElement.dataset.accent = accent;
-      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t === 'dark' ? '#0b0d14' : '#f7f7fb');
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t === 'dark' ? '#140d0b' : '#fbf6ee');
     };
     apply();
     mq.addEventListener('change', apply);

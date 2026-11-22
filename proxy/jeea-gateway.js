@@ -13,7 +13,13 @@
  *       NVIDIA_API_KEY   (type: Secret)   your key from build.nvidia.com
  *       ALLOWED_ORIGINS  (type: Text)     https://<your-user>.github.io
  *     Optional secrets: GROQ_API_KEY, GEMINI_API_KEY, CEREBRAS_API_KEY,
- *     MISTRAL_API_KEY, OPENROUTER_API_KEY (only ":free" models are offered).
+ *     MISTRAL_API_KEY, OPENROUTER_API_KEY (only ":free" models are offered),
+ *     SAMBANOVA_API_KEY, HF_TOKEN, COHERE_API_KEY, OLLAMA_API_KEY,
+ *     ZAI_API_KEY, SILICONFLOW_API_KEY, OVH_AI_KEY.
+ *  3b. Free models with NO extra key: in the Worker's Settings, add a Workers AI
+ *     binding named "AI" (Wrangler config: "ai": { "binding": "AI" }). This adds Cloudflare Workers AI models (Llama 3.3
+ *     70B, Llama 4 Scout, Mistral Small 3.1, QwQ 32B, DeepSeek R1 Distill,
+ *     Qwen 2.5 Coder, GPT-OSS 120B) on Cloudflare's free daily allowance.
  *     Optional text: PER_MINUTE (requests per visitor per minute, default 12),
  *     MAX_TOKENS (cap per answer, default 4096).
  *  4. Copy the worker URL (https://jeea-gateway.<name>.workers.dev) into
@@ -32,7 +38,76 @@ const UPSTREAMS = {
   cerebras: { base: 'https://api.cerebras.ai/v1', secret: 'CEREBRAS_API_KEY' },
   mistral: { base: 'https://api.mistral.ai/v1', secret: 'MISTRAL_API_KEY' },
   openrouter: { base: 'https://openrouter.ai/api/v1', secret: 'OPENROUTER_API_KEY', freeOnly: true },
+  sambanova: { base: 'https://api.sambanova.ai/v1', secret: 'SAMBANOVA_API_KEY' },
+  huggingface: { base: 'https://router.huggingface.co/v1', secret: 'HF_TOKEN' },
+  cohere: { base: 'https://api.cohere.ai/compatibility/v1', secret: 'COHERE_API_KEY' },
+  ollama: { base: 'https://ollama.com/v1', secret: 'OLLAMA_API_KEY' },
+  zai: { base: 'https://api.z.ai/api/paas/v4', secret: 'ZAI_API_KEY' },
+  siliconflow: { base: 'https://api.siliconflow.com/v1', secret: 'SILICONFLOW_API_KEY' },
+  ovh: { base: 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1', secret: 'OVH_AI_KEY' },
 };
+
+// Cloudflare Workers AI chat models (ids from Cloudflare's model catalog).
+const CF_MODELS = [
+  '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
+  '@cf/meta/llama-4-scout-17b-16e-instruct',
+  '@cf/mistralai/mistral-small-3.1-24b-instruct',
+  '@cf/qwen/qwq-32b',
+  '@cf/deepseek-ai/deepseek-r1-distill-qwen-32b',
+  '@cf/qwen/qwen2.5-coder-32b-instruct',
+  '@cf/openai/gpt-oss-120b',
+];
+
+/** Workers AI streams {"response": "..."} events; JeeA! reads OpenAI-style chunks. */
+function toOpenAIStream(stream) {
+  const enc = new TextEncoder();
+  const dec = new TextDecoder();
+  let buf = '';
+  const emit = (ctrl, obj) => ctrl.enqueue(enc.encode(`data: ${JSON.stringify(obj)}\n\n`));
+  const line = (ctrl, l) => {
+    if (!l.startsWith('data:')) return;
+    const data = l.slice(5).trim();
+    if (!data) return;
+    if (data === '[DONE]') return ctrl.enqueue(enc.encode('data: [DONE]\n\n'));
+    let j;
+    try {
+      j = JSON.parse(data);
+    } catch {
+      return;
+    }
+    if (Array.isArray(j.choices)) return emit(ctrl, j);
+    if (typeof j.response === 'string' && j.response) emit(ctrl, { choices: [{ index: 0, delta: { content: j.response } }] });
+    if (j.usage) emit(ctrl, { choices: [], usage: j.usage });
+  };
+  return stream.pipeThrough(
+    new TransformStream({
+      transform(chunk, ctrl) {
+        buf += dec.decode(chunk, { stream: true });
+        let i;
+        while ((i = buf.indexOf('\n')) >= 0) {
+          line(ctrl, buf.slice(0, i).replace(/\r$/, ''));
+          buf = buf.slice(i + 1);
+        }
+      },
+      flush(ctrl) {
+        if (buf) line(ctrl, buf);
+      },
+    }),
+  );
+}
+
+async function workersAI(env, model, body, cap, cors) {
+  if (!env.AI) return json({ error: { message: 'Add a Workers AI binding named "AI" to this Worker to use Cloudflare models.' } }, 400, cors);
+  if (!CF_MODELS.includes(model)) return json({ error: { message: `Unknown Cloudflare model "${model}".` } }, 400, cors);
+  const params = { messages: body.messages, stream: !!body.stream, max_tokens: Math.min(Number(body.max_tokens || body.max_completion_tokens || cap), cap) };
+  if (typeof body.temperature === 'number') params.temperature = body.temperature;
+  const out = await env.AI.run(model, params);
+  if (body.stream && out && typeof out.pipeThrough === 'function') {
+    return new Response(toOpenAIStream(out), { headers: { 'Content-Type': 'text/event-stream', ...cors } });
+  }
+  const text = typeof out?.response === 'string' ? out.response : String(out?.response ?? '');
+  return json({ object: 'chat.completion', model: `cloudflare:${model}`, choices: [{ index: 0, message: { role: 'assistant', content: text }, finish_reason: 'stop' }], usage: out?.usage }, 200, cors);
+}
 
 const NOT_CHAT = /embed|rerank|whisper|tts|transcri|dall-e|image|vision-only|moderation|guard|reward|parse|ocr|clip|nv-embed|bge|e5-|retriever/i;
 
@@ -102,11 +177,13 @@ export default {
 
     if (request.method === 'GET' && (path === '' || path === '/' || path === '/v1')) {
       const ready = Object.keys(UPSTREAMS).filter((n) => env[UPSTREAMS[n].secret]);
+      if (env.AI) ready.unshift('cloudflare');
       return json({ name: 'JeeA Gateway', providers: ready, endpoints: ['/v1/models', '/v1/chat/completions'] }, 200, cors);
     }
 
     if (request.method === 'GET' && path === '/v1/models') {
       const out = [];
+      if (env.AI) for (const id of CF_MODELS) out.push({ id: `cloudflare:${id}`, object: 'model', owned_by: 'cloudflare' });
       for (const [name, up] of Object.entries(UPSTREAMS)) {
         const key = env[up.secret];
         if (!key) continue;
@@ -140,13 +217,14 @@ export default {
       const i = full.indexOf(':');
       const name = i > 0 ? full.slice(0, i) : '';
       const model = i > 0 ? full.slice(i + 1) : '';
+      const cap = Number(env.MAX_TOKENS || 4096);
+      if (name === 'cloudflare') return workersAI(env, model, body, cap, cors);
       const up = UPSTREAMS[name];
       if (!up || !model) return json({ error: { message: `Unknown model "${full}". Use "provider:model" from /v1/models.` } }, 400, cors);
       const key = env[up.secret];
       if (!key) return json({ error: { message: `This gateway has no key for ${name}.` } }, 400, cors);
       if (up.freeOnly && !model.endsWith(':free')) return json({ error: { message: 'Only free (":free") models are offered for this provider.' } }, 403, cors);
 
-      const cap = Number(env.MAX_TOKENS || 4096);
       const fwd = { ...body, model };
       for (const f of ['max_tokens', 'max_completion_tokens']) if (typeof fwd[f] === 'number') fwd[f] = Math.min(fwd[f], cap);
       if (fwd.max_tokens === undefined && fwd.max_completion_tokens === undefined) fwd.max_tokens = cap;

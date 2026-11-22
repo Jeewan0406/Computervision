@@ -1,5 +1,5 @@
 /** In-app release log ("What's new"). Mirrors CHANGELOG.md. */
-export const APP_VERSION = '1.2.0';
+export const APP_VERSION = '1.3.0';
 
 export interface Release {
   version: string;
@@ -9,6 +9,16 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
+  {
+    version: '1.3.0',
+    date: '2026-11-22',
+    title: 'Bhutan colours and more free models',
+    items: [
+      { tag: 'new', feature: 'Look', text: 'New logo and a Bhutan-inspired "Druk" theme: saffron, gold and maroon, a dzong-white light mode, a prayer-flag ribbon and a faint woven-textile pattern. Other colours stay in Settings.' },
+      { tag: 'new', feature: 'Free models', text: 'Added OVHcloud AI (no key, 2 requests per minute per model), Ollama Cloud, Z.ai GLM flash models and SiliconFlow free models. Free tags now follow each provider\'s own free list.' },
+      { tag: 'new', feature: 'JeeA Gateway', text: 'Can now serve Cloudflare Workers AI models (Llama 3.3 70B, Llama 4 Scout, Mistral Small 3.1, QwQ 32B and more) on Cloudflare\'s free daily allowance, with no extra key, plus optional keys for seven more providers.' },
+    ],
+  },
   {
     version: '1.2.0',
     date: '2026-11-22',

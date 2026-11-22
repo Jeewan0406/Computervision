@@ -6,7 +6,7 @@ import { prettyModel, isFreeModel, routeLabel } from './models';
 import { uid } from './utils';
 
 export type Theme = 'system' | 'dark' | 'light';
-export type Accent = 'violet' | 'blue' | 'emerald' | 'rose' | 'amber';
+export type Accent = 'druk' | 'violet' | 'blue' | 'emerald' | 'rose' | 'amber';
 
 export interface Settings {
   theme: Theme;
@@ -42,7 +42,7 @@ export const DEFAULT_MODEL: ModelRef = { providerId: KEYLESS_ID, model: 'openai'
 
 const initial: Settings = {
   theme: 'dark',
-  accent: 'violet',
+  accent: 'druk',
   sendOnEnter: true,
   showReasoning: true,
   keyStorage: 'local',
@@ -133,7 +133,13 @@ export const useSettings = create<Settings & SettingsActions>()(
     }),
     {
       name: 'jeea.settings',
-      version: 1,
+      version: 2,
+      // v2: the Bhutan-inspired "druk" palette replaces violet as the default look.
+      migrate: (persisted, version) => {
+        const st = (persisted ?? {}) as Partial<Settings>;
+        if (version < 2 && (!st.accent || st.accent === 'violet')) st.accent = 'druk';
+        return st as Settings & SettingsActions;
+      },
       storage,
       partialize: (s) => {
         // Functions are not stored; cooldown timers reset on reload.
@@ -252,7 +258,10 @@ export function usableModelRefs(limit = 6): ModelRef[] {
     for (const { p, models } of lists) if (models[round]) push({ providerId: p.id, model: models[round] });
   }
   if (refs.length < 2) {
-    for (const p of providers.filter((x) => x.access === 'keyless')) push({ providerId: p.id, model: p.defaultModel });
+    // Free no-key models; Puter needs a sign-in, so it is only a last resort.
+    const keyless = providers.filter((x) => x.access === 'keyless');
+    for (const p of keyless.filter((x) => x.kind !== 'puter')) push({ providerId: p.id, model: p.defaultModel });
+    if (!refs.length) for (const p of keyless) push({ providerId: p.id, model: p.defaultModel });
   }
   if (!refs.length) refs.push(DEFAULT_MODEL);
   return refs;
