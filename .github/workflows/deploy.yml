@@ -1,10 +1,11 @@
 # Builds JeeA! and publishes it to GitHub Pages.
 # One-time setup: repo Settings -> Pages -> "Build and deployment" -> Source: "GitHub Actions".
+# Runs on pushes to the default branch only, so switching the default branch needs no edit here.
 name: Deploy to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'claude/**']
   workflow_dispatch:
 
 permissions:
@@ -18,6 +19,8 @@ concurrency:
 
 jobs:
   build:
+    # Publish only from the repository's default branch (GitHub Pages accepts only that branch).
+    if: github.ref_name == github.event.repository.default_branch
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
