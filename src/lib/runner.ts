@@ -1,5 +1,5 @@
 import type { GenParams, ModelRef, MsgMeta, ProviderDef, Slot, View } from './types';
-import { LLMError, streamAnthropic, streamOpenAI, type CallTarget, type ChatMsg } from './llm';
+import { LLMError, streamText, type CallTarget, type ChatMsg } from './llm';
 import { getProvider, useSettings } from './settings';
 import { log } from './logs';
 import { estimateTokens, isAbort, sleep } from './utils';
@@ -70,10 +70,9 @@ function release(key: string) {
   if (next) next();
 }
 
-// ---- keyless pacing (Pollinations Classic: one at a time, >= 45 s apart) ----
-const KEYLESS_GAP_MS = 45_000;
-let keylessLastStart = 0;
-let keylessCooldownUntil = 0;
+// ---- pacing for shared free tiers (e.g. Pollinations: one at a time, >= 45 s apart) ----
+const lastStart = new Map<string, number>();
+const cooldownUntil = new Map<string, number>();
 
 async function waitWithCountdown(ms: number, label: string, opts: { signal: AbortSignal; onStatus?: (t: string) => void }) {
   const end = Date.now() + ms;
@@ -152,10 +151,7 @@ export interface SlotRunOptions {
 export async function runChat(opts: RunOptions): Promise<RunResult> {
   const { result, meta, usedRef } = await runWithSlots(
     { ...opts, allowFallback: true, inputForEstimate: opts.messages.map((m) => m.content).join('\n') },
-    (target, h, signal) => {
-      const fn = target.provider.kind === 'anthropic' ? streamAnthropic : streamOpenAI;
-      return fn(target, opts.messages, opts.params ?? {}, signal, h);
-    },
+    (target, h, signal) => streamText(target, opts.messages, opts.params ?? {}, signal, h),
   );
   return { content: result.content, reasoning: result.reasoning, meta, usedRef };
 }
@@ -194,12 +190,12 @@ export async function runWithSlots<R extends AttemptResult>(
       for (let tryNo = 0; tryNo < maxAttempts; tryNo++) {
         triedAny = true;
         if (provider.access === 'keyless') {
-          const wait = Math.max(keylessCooldownUntil, keylessLastStart + KEYLESS_GAP_MS) - Date.now();
+          const wait = Math.max(cooldownUntil.get(provider.id) ?? 0, (lastStart.get(provider.id) ?? 0) + (provider.minGapMs ?? 0)) - Date.now();
           if (wait > 0) await waitWithCountdown(wait, 'Free model is shared: next free slot in', opts);
         }
         const lockKey = slot.id;
         await acquire(lockKey, provider.maxConcurrent ?? 4, opts.signal);
-        if (provider.access === 'keyless') keylessLastStart = Date.now();
+        if (provider.access === 'keyless') lastStart.set(provider.id, Date.now());
 
         const t0 = performance.now();
         let ttft: number | undefined;
@@ -262,9 +258,9 @@ export async function runWithSlots<R extends AttemptResult>(
             break; // next slot
           }
           if (status === 429 || status === 402) {
-            const cool = err.retryAfterMs ?? (provider.access === 'keyless' ? KEYLESS_GAP_MS : 30_000);
+            const cool = err.retryAfterMs ?? (provider.minGapMs ?? 30_000);
             if (provider.access === 'keyless') {
-              keylessCooldownUntil = Date.now() + cool;
+              cooldownUntil.set(provider.id, Date.now() + cool);
               log({ ...base, level: 'warn', status: 'retry', message: `Free tier busy; waiting ${Math.ceil(cool / 1000)} s.` });
               if (cool <= 90_000 && tryNo + 1 < maxAttempts) continue; // loop waits with a countdown
               break;
@@ -308,8 +304,7 @@ export async function testSlot(slot: Slot, model: string): Promise<{ ok: boolean
   const t0 = performance.now();
   let text = '';
   try {
-    const fn = provider.kind === 'anthropic' ? streamAnthropic : streamOpenAI;
-    const r = await fn(
+    const r = await streamText(
       { provider, slot, model, corsProxy: useSettings.getState().corsProxy },
       [{ role: 'user', content: 'Reply with exactly: JeeA ready' }],
       { maxTokens: provider.kind === 'anthropic' ? 2000 : 30 },

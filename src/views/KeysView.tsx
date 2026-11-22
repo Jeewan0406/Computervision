@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  CheckCircle2, Clock, Download, ExternalLink, Eye, EyeOff, KeyRound, Loader2, Plus, RefreshCw, Route, ShieldCheck,
+  CheckCircle2, Clock, Download, ExternalLink, Eye, EyeOff, KeyRound, Loader2, LogIn, Plus, RefreshCw, Route, ShieldCheck,
   Trash2, Upload, XCircle, Zap,
 } from 'lucide-react';
 import type { ProviderDef, Slot } from '../lib/types';
-import { useSettings, allProviders, modelsFor } from '../lib/settings';
+import { useSettings, allProviders, modelsFor, useRuntime } from '../lib/settings';
 import { ACCESS_LABEL, KEYLESS_ID } from '../lib/providers';
 import { useUI } from '../lib/ui';
 import { log } from '../lib/logs';
-import { listModels } from '../lib/llm';
+import { listModels, puterSignIn } from '../lib/llm';
 import { testSlot } from '../lib/runner';
 import { downloadText, maskKey } from '../lib/utils';
 import { TopBar } from '../components/Shell';
@@ -284,7 +284,8 @@ export function KeysView() {
   const goAddSlot = useUI((u) => u.goAddSlot);
   const toast = useUI((u) => u.toast);
   const confirm = useUI((u) => u.confirm);
-  const providers = useMemo(() => allProviders(s.customProviders), [s.customProviders]);
+  const rv = useRuntime((x) => x.v);
+  const providers = useMemo(() => allProviders(s.customProviders), [s.customProviders, rv]);
   const formRef = useRef<HTMLDivElement>(null);
   const importRef = useRef<HTMLInputElement>(null);
   const [filter, setFilter] = useState<'all' | 'free' | 'paid' | 'local'>('all');
@@ -418,7 +419,16 @@ export function KeysView() {
                   <p className="sm">{p.tagline}</p>
                   {p.note && <p className="xs muted">{p.note}</p>}
                   <div className="provider-actions">
-                    {p.access === 'keyless' ? (
+                    {p.kind === 'puter' ? (
+                      <button className="btn primary xs" onClick={async () => {
+                        try {
+                          const ok = await puterSignIn();
+                          toast(ok ? 'Signed in to Puter. Pick a Puter model in the chat box.' : 'Puter sign-in was not completed', ok ? 'success' : 'info');
+                        } catch (e) {
+                          toast(`Puter: ${(e as Error).message}`, 'error');
+                        }
+                      }}><LogIn size={13} /> Sign in to Puter (free)</button>
+                    ) : p.access === 'keyless' ? (
                       <span className="status ok"><CheckCircle2 size={13} /> Ready, no key needed</span>
                     ) : (
                       <button className="btn ghost xs" onClick={() => goAddSlot(p.id)}><Plus size={13} /> {n ? `Add key (${n})` : 'Add key'}</button>

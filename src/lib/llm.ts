@@ -120,7 +120,7 @@ export async function streamOpenAI(
   if (params.maxTokens) body[t.provider.id === 'openai' ? 'max_completion_tokens' : 'max_tokens'] = params.maxTokens;
   if (t.provider.streamUsage) body.stream_options = { include_usage: true };
 
-  const url = viaProxy(`${baseOf(t)}${t.provider.access === 'keyless' ? '/openai' : '/chat/completions'}`, t);
+  const url = viaProxy(`${baseOf(t)}${t.provider.chatPath ?? '/chat/completions'}`, t);
   const res = await doFetch(url, { method: 'POST', headers: headersFor(t), body: JSON.stringify(body), signal });
   if (!res.ok) throw await errorFrom(res);
 
@@ -209,6 +209,80 @@ export async function streamOpenAI(
   }
   if (streamError) throw streamError;
   return out;
+}
+
+// ---------------------------------------------------------------------- Puter
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+let puterPromise: Promise<any> | null = null;
+
+/** Load Puter.js (bundled, version pinned in package-lock) only when needed. */
+export function loadPuter(): Promise<any> {
+  const existing = (globalThis as any).puter; // already on the page (e.g. Puter's own script tag)
+  puterPromise ??= (existing ? Promise.resolve(existing) : import('@heyputer/puter.js'))
+    .then((m: any) => (m === existing ? m : m.puter ?? m.default ?? (globalThis as any).puter))
+    .catch((e) => {
+      puterPromise = null;
+      throw new LLMError(`Could not start Puter.js: ${(e as Error).message}`, { network: true });
+    });
+  return puterPromise;
+}
+
+/** Ask Puter to sign the user in (call from a click so the popup is allowed). */
+export async function puterSignIn(): Promise<boolean> {
+  const puter = await loadPuter();
+  if (puter?.auth?.isSignedIn?.()) return true;
+  await puter.auth.signIn();
+  return !!puter.auth.isSignedIn?.();
+}
+
+export async function streamPuter(t: CallTarget, messages: ChatMsg[], params: GenParams, signal: AbortSignal, h: StreamHandlers): Promise<CallResult> {
+  const puter = await loadPuter();
+  const opts: Record<string, unknown> = { stream: true };
+  if (t.model && t.model !== 'default') opts.model = t.model;
+  if (params.temperature != null) opts.temperature = params.temperature;
+  if (params.maxTokens) opts.max_tokens = params.maxTokens;
+  const out: CallResult = { content: '', reasoning: '' };
+  let stream: any;
+  try {
+    stream = await puter.ai.chat(messages.map((m) => ({ role: m.role, content: m.content })), opts);
+  } catch (e) {
+    const msg = (e as any)?.error?.message ?? (e as any)?.message ?? String(e);
+    throw new LLMError(`Puter: ${msg}`, { status: (e as any)?.status ?? (/sign|auth|login/i.test(msg) ? 401 : undefined) });
+  }
+  const onAbort = () => void stream?.cancel?.();
+  signal.addEventListener('abort', onAbort, { once: true });
+  try {
+    for await (const ch of stream as AsyncIterable<any>) {
+      if (signal.aborted) throw new DOMException('Aborted', 'AbortError');
+      if (ch?.type === 'text' && ch.text) {
+        out.content += ch.text;
+        h.onText(ch.text);
+      } else if (ch?.type === 'reasoning' && ch.reasoning) {
+        out.reasoning += ch.reasoning;
+        h.onReasoning?.(ch.reasoning);
+      } else if (ch?.type === 'usage' && ch.usageDetails) {
+        out.tokensIn = ch.usageDetails.inputTokens;
+        out.tokensOut = ch.usageDetails.outputTokens;
+      } else if (ch?.type === 'error') {
+        throw new LLMError(`Puter: ${ch.message ?? 'error'}`, { status: /limit|quota|insufficient/i.test(ch.message ?? '') ? 429 : undefined });
+      } else if (typeof ch === 'string') {
+        out.content += ch;
+        h.onText(ch);
+      }
+    }
+  } finally {
+    signal.removeEventListener('abort', onAbort);
+  }
+  return out;
+}
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+/** Plain text streaming for any provider kind. */
+export function streamText(t: CallTarget, messages: ChatMsg[], params: GenParams, signal: AbortSignal, h: StreamHandlers): Promise<CallResult> {
+  if (t.provider.kind === 'anthropic') return streamAnthropic(t, messages, params, signal, h);
+  if (t.provider.kind === 'puter') return streamPuter(t, messages, params, signal, h);
+  return streamOpenAI(t, messages, params, signal, h);
 }
 
 // ------------------------------------------------------------------ Anthropic
@@ -353,6 +427,14 @@ export async function streamAnthropicAgent(
 
 export async function listModels(t: Omit<CallTarget, 'model'>, signal?: AbortSignal): Promise<string[]> {
   const target = { ...t, model: '' } as CallTarget;
+  if (t.provider.kind === 'puter') {
+    const puter = await loadPuter();
+    const list = (await puter.ai.listModels()) as Record<string, unknown>[];
+    const ids = list
+      .map((m) => (typeof m === 'string' ? m : (m.id ?? m.name ?? m.model) as string))
+      .filter((x): x is string => typeof x === 'string' && !!x);
+    return ['default', ...new Set(ids.filter((id) => !/embed|tts|whisper|dall-e|image|moderation/i.test(id)))];
+  }
   if (t.provider.kind === 'anthropic') {
     const { default: Anthropic } = await import('@anthropic-ai/sdk');
     const client = new Anthropic({

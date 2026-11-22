@@ -211,7 +211,6 @@ export function AgentView() {
           <button className={tab === 'here' ? 'active' : ''} onClick={() => setTab('here')}><Bot size={14} /> Run here</button>
           <button className={tab === 'github' ? 'active' : ''} onClick={() => setTab('github')}><Clock3 size={14} /> 24/7 on GitHub</button>
         </div>
-        {tab === 'here' && <ModelPicker value={model} onChange={(r) => set({ model: r })} size="sm" />}
       </TopBar>
 
       {tab === 'github' ? (
@@ -255,7 +254,13 @@ export function AgentView() {
               ))}
             </div>
           )}
-          <Composer onSend={send} busy={busy} onStop={() => session && stopJobs(session.id)} placeholder="Describe a goal for the agent…" />
+          <Composer
+            onSend={send}
+            busy={busy}
+            onStop={() => session && stopJobs(session.id)}
+            placeholder="Describe a goal for the agent…"
+            left={<ModelPicker value={model} onChange={(r) => set({ model: r })} size="sm" />}
+          />
         </>
       )}
     </div>

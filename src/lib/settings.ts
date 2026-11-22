@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ModelRef, ProviderDef, Slot } from './types';
-import { BUILTIN_PROVIDERS, KEYLESS_ID } from './providers';
+import { BUILTIN_PROVIDERS, GATEWAY_ID, KEYLESS_ID } from './providers';
+import { prettyModel, isFreeModel, routeLabel } from './models';
 import { uid } from './utils';
 
 export type Theme = 'system' | 'dark' | 'light';
@@ -144,8 +145,32 @@ export const useSettings = create<Settings & SettingsActions>()(
   ),
 );
 
+/** The site owner's JeeA Gateway (set in public/jeea.config.json). */
+let gatewayProvider: ProviderDef | null = null;
+export function setGateway(url: string | null, name?: string) {
+  const base = (url ?? '').trim().replace(/\/+$/, '');
+  if (!/^https:\/\//.test(base)) {
+    gatewayProvider = null;
+    return;
+  }
+  gatewayProvider = {
+    id: GATEWAY_ID,
+    name: name || 'JeeA Free+ (gateway)',
+    kind: 'openai',
+    baseUrl: `${base}/v1`,
+    access: 'keyless',
+    color: '#76b900',
+    tagline: 'Free models shared by this site (NVIDIA and others). No key needed.',
+    note: 'Shared by everyone who uses this site, so the providers\' free limits are shared too. If it is busy, try again in a minute or add your own key.',
+    suggestedModels: ['nvidia:meta/llama-3.3-70b-instruct'],
+    defaultModel: 'nvidia:meta/llama-3.3-70b-instruct',
+  };
+}
+export const gatewayInfo = () => gatewayProvider;
+
 export function allProviders(custom: ProviderDef[] = useSettings.getState().customProviders): ProviderDef[] {
-  return [...BUILTIN_PROVIDERS, ...custom];
+  const builtin = gatewayProvider ? [BUILTIN_PROVIDERS[0], gatewayProvider, ...BUILTIN_PROVIDERS.slice(1)] : BUILTIN_PROVIDERS;
+  return [...builtin, ...custom];
 }
 
 export function getProvider(id: string): ProviderDef | undefined {
@@ -163,22 +188,39 @@ export function isUsable(p: ProviderDef, slots: Slot[] = useSettings.getState().
 
 export const modelKey = (r: ModelRef) => `${r.providerId}::${r.model}`;
 
+/** Friendly name, e.g. "meta/llama-3.3-70b-instruct" -> "Llama 3.3 70B". */
 export function modelLabel(r: ModelRef): string {
-  const p = getProvider(r.providerId);
-  return p?.modelLabels?.[r.model] ?? r.model.split('/').pop() ?? r.model;
+  return displayName(getProvider(r.providerId), r.model);
+}
+
+export function displayName(p: ProviderDef | undefined, model: string): string {
+  if (p?.modelLabels?.[model]) return p.modelLabels[model];
+  const via = p?.id === GATEWAY_ID ? routeLabel(model) : null;
+  return via ? `${prettyModel(model)} · ${via}` : prettyModel(model);
+}
+
+export function isFree(r: ModelRef): boolean {
+  return isFreeModel(getProvider(r.providerId), r.model);
 }
 
 /** Models a provider offers: live list from any slot, else the suggestions. */
 export function modelsFor(p: ProviderDef, slots: Slot[] = useSettings.getState().slots): { list: string[]; live: boolean } {
   const live = new Set<string>();
   for (const s of slots) if (s.providerId === p.id && s.models?.length) s.models.forEach((m) => live.add(m));
-  if (p.access === 'keyless' && keylessModels.length) keylessModels.forEach((m) => live.add(m));
+  if (p.access === 'keyless') (liveModels.get(p.id) ?? []).forEach((m) => live.add(m));
   if (live.size) return { list: [...live], live: true };
   return { list: p.suggestedModels, live: false };
 }
 
-/** Live model list for the keyless provider (filled at runtime). */
-export const keylessModels: string[] = [];
+/** Live model lists for keyless providers (filled at runtime). */
+export const liveModels = new Map<string, string[]>();
+
+/** Bumped when runtime provider data changes (gateway config, live lists). */
+export const useRuntime = create<{ v: number; bump: () => void }>()((set, get) => ({ v: 0, bump: () => set({ v: get().v + 1 }) }));
+export function setLiveModels(providerId: string, ids: string[]) {
+  liveModels.set(providerId, ids);
+  useRuntime.getState().bump();
+}
 
 /**
  * Pick up to N distinct usable models, used to pre-fill Compare lanes and

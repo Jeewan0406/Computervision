@@ -2,6 +2,21 @@
 
 All notable changes to JeeA! are listed here. The same notes appear in the app under **What's new** (✨).
 
+## 1.2.0 — 2026-11-22 — More free models, friendlier picker
+
+### New
+- **Puter** — hundreds of models (GPT, Claude, Gemini, Llama and more) through a free Puter account. JeeA! needs no key; usage counts against each person's own Puter allowance.
+- **JeeA Gateway** (`proxy/jeea-gateway.js`) — a Cloudflare Worker that keeps the site owner's free keys (NVIDIA, Groq, Gemini, Cerebras, Mistral, OpenRouter free models) secret and shares those models with every visitor, with an origin lock and a per-visitor limit. Switched on through `public/jeea.config.json`.
+
+### Improved
+- The model picker is now inside the chat box in Chat, Agent and CodeFrame, opens upward, and fits phones.
+- Friendly model names ("Llama 3.3 70B", "Gemini 2.5 Flash", "Claude Opus 5.5"), with the source shown for gateway models ("Llama 3.3 70B · NVIDIA").
+- A green **Free** tag on free models; type "free" in the picker to see only free models.
+- NVIDIA NIM defaults and guidance updated.
+
+### Security
+- Puter.js is bundled at a pinned version (2.6.5) and loaded only when chosen; its vulnerable `postal-mime` dependency is forced to the fixed 4.x line (`npm audit`: 0 vulnerabilities).
+
 ## 1.1.0 — 2026-11-22 — Agents
 
 ### New

@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, KeyRound, Lock, RefreshCw, Search } from 'lucide-react';
+import { Check, ChevronDown, KeyRound, Lock, LogIn, RefreshCw, Search } from 'lucide-react';
 import type { ModelRef, ProviderDef } from '../lib/types';
-import { allProviders, isUsable, keylessModels, modelLabel, modelsFor, useSettings } from '../lib/settings';
+import { allProviders, displayName, isUsable, modelLabel, modelsFor, setLiveModels, useRuntime, useSettings, isFree } from '../lib/settings';
 import { ACCESS_LABEL } from '../lib/providers';
-import { listModels } from '../lib/llm';
+import { isFreeModel } from '../lib/models';
+import { listModels, puterSignIn } from '../lib/llm';
 import { useUI } from '../lib/ui';
 import { log } from '../lib/logs';
 import { Popover } from './Popover';
@@ -12,12 +13,18 @@ export function ProviderDot({ color, size = 10 }: { color: string; size?: number
   return <span className="pdot" style={{ background: color, width: size, height: size }} />;
 }
 
+export function FreeTag({ small = false }: { small?: boolean }) {
+  return <span className={`free-tag${small ? ' sm' : ''}`} title="Free to use (limits set by the provider)">Free</span>;
+}
+
 export function ModelBadge({ r }: { r: ModelRef }) {
+  useRuntime((s) => s.v);
   const p = allProviders().find((x) => x.id === r.providerId);
   return (
     <span className="model-badge" title={`${p?.name ?? r.providerId} · ${r.model}`}>
       <ProviderDot color={p?.color ?? '#888'} size={8} />
       <span className="model-badge-name">{modelLabel(r)}</span>
+      {isFree(r) && <FreeTag small />}
     </span>
   );
 }
@@ -37,7 +44,7 @@ export function ModelPicker({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [loading, setLoading] = useState<string | null>(null);
-  const [, force] = useState(0);
+  useRuntime((s) => s.v);
   const slots = useSettings((s) => s.slots);
   const custom = useSettings((s) => s.customProviders);
   const updateSlot = useSettings((s) => s.updateSlot);
@@ -45,7 +52,7 @@ export function ModelPicker({
   const goAddSlot = useUI((s) => s.goAddSlot);
   const toast = useUI((s) => s.toast);
 
-  const providers = useMemo(() => allProviders(custom), [custom]);
+  const providers = useMemo(() => allProviders(custom), [custom, useRuntime.getState().v]); // eslint-disable-line react-hooks/exhaustive-deps
   const current = providers.find((p) => p.id === value.providerId);
   const usable = providers.filter((p) => isUsable(p, slots));
   const locked = providers.filter((p) => !isUsable(p, slots));
@@ -59,9 +66,8 @@ export function ModelPicker({
     try {
       if (p.access === 'keyless') {
         const ids = await listModels({ provider: p, slot: { apiKey: '' }, corsProxy });
-        keylessModels.splice(0, keylessModels.length, ...ids);
-        force((n) => n + 1);
-        toast(`Loaded ${ids.length} free model${ids.length === 1 ? '' : 's'}`, 'success');
+        setLiveModels(p.id, ids);
+        toast(`${p.name}: ${ids.length} models loaded`, 'success');
         return;
       }
       const slot = slots.find((s) => s.providerId === p.id && s.enabled);
@@ -78,8 +84,22 @@ export function ModelPicker({
     }
   };
 
+  const signIn = async (p: ProviderDef) => {
+    setLoading(p.id);
+    try {
+      const ok = await puterSignIn();
+      toast(ok ? 'Signed in to Puter' : 'Puter sign-in was not completed', ok ? 'success' : 'info');
+      if (ok) await refresh(p);
+    } catch (e) {
+      toast(`Puter: ${(e as Error).message}`, 'error');
+    } finally {
+      setLoading(null);
+    }
+  };
+
   const ql = q.trim().toLowerCase();
   const providerSlots = slots.filter((s) => s.providerId === value.providerId && s.enabled);
+  const free = isFreeModel(current, value.model);
 
   return (
     <>
@@ -97,22 +117,24 @@ export function ModelPicker({
           <span className="mp-model">{modelLabel(value)}</span>
           {size === 'md' && <span className="mp-provider">{current?.name ?? 'Unknown provider'}</span>}
         </span>
+        {free && <FreeTag small />}
         <ChevronDown size={14} className="mp-chev" />
       </button>
-      <Popover anchor={btn} open={open} onClose={close} width={380} align={align}>
+      <Popover anchor={btn} open={open} onClose={close} width={400} align={align}>
         <div className="mp-search">
           <Search size={15} />
-          <input
-            autoFocus
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search models, or type any model id…"
-          />
+          <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search models, e.g. Llama, Gemini, free…" />
         </div>
         <div className="mp-list">
           {usable.map((p) => {
             const { list, live } = modelsFor(p, slots);
-            const shown = list.filter((m) => !ql || m.toLowerCase().includes(ql) || (p.modelLabels?.[m] ?? '').toLowerCase().includes(ql) || p.name.toLowerCase().includes(ql));
+            const wantFree = ql === 'free';
+            const shown = list.filter((m) => {
+              if (!ql) return true;
+              if (wantFree) return isFreeModel(p, m);
+              const name = displayName(p, m).toLowerCase();
+              return m.toLowerCase().includes(ql) || name.includes(ql) || p.name.toLowerCase().includes(ql);
+            });
             const nSlots = slots.filter((s) => s.providerId === p.id && s.enabled).length;
             if (!shown.length) return null;
             return (
@@ -122,12 +144,18 @@ export function ModelPicker({
                   <span className="mp-group-name">{p.name}</span>
                   <span className={`badge badge-${p.access}`}>{ACCESS_LABEL[p.access]}</span>
                   {nSlots > 0 && <span className="mp-keys" title="Enabled keys"><KeyRound size={11} />{nSlots}</span>}
+                  {p.kind === 'puter' && (
+                    <button className="btn ghost xs" onClick={() => signIn(p)} disabled={loading === p.id} title="Sign in with a free Puter account">
+                      <LogIn size={12} /> Sign in
+                    </button>
+                  )}
                   <button className="icon-btn xs" title={live ? 'Reload model list' : 'Load live model list'} onClick={() => refresh(p)} disabled={loading === p.id}>
                     <RefreshCw size={13} className={loading === p.id ? 'spin' : ''} />
                   </button>
                 </div>
-                {shown.slice(0, 60).map((m) => {
+                {shown.slice(0, 80).map((m) => {
                   const sel = value.providerId === p.id && value.model === m;
+                  const name = displayName(p, m);
                   return (
                     <button
                       key={m}
@@ -136,19 +164,27 @@ export function ModelPicker({
                         onChange({ providerId: p.id, model: m, slotId: value.providerId === p.id ? value.slotId : undefined });
                         close();
                       }}
+                      title={m}
                     >
-                      <span className="mp-item-name">{p.modelLabels?.[m] ?? m}</span>
-                      {m.endsWith(':free') && <span className="badge badge-keyless">free</span>}
+                      <span className="mp-item-text">
+                        <span className="mp-item-name">{name}</span>
+                        {name.toLowerCase() !== m.toLowerCase() && <span className="mp-item-id">{m}</span>}
+                      </span>
+                      {isFreeModel(p, m) && <FreeTag small />}
                       {sel && <Check size={14} />}
                     </button>
                   );
                 })}
-                {shown.length > 60 && <div className="mp-more">+{shown.length - 60} more — type to filter</div>}
-                {!live && !ql && <div className="mp-hint">Suggested list. Press ↻ to load the live list.</div>}
+                {shown.length > 80 && <div className="mp-more">+{shown.length - 80} more — type to filter</div>}
+                {!live && !ql && (
+                  <div className="mp-hint">
+                    {p.kind === 'puter' ? 'Sign in, then press ↻ to load all Puter models.' : 'Suggested list. Press ↻ to load the live list.'}
+                  </div>
+                )}
               </div>
             );
           })}
-          {ql && !usable.some((p) => modelsFor(p, slots).list.some((m) => m.toLowerCase() === ql)) && (
+          {ql && ql !== 'free' && !usable.some((p) => modelsFor(p, slots).list.some((m) => m.toLowerCase() === ql)) && (
             <div className="mp-group">
               <div className="mp-group-head"><span className="mp-group-name">Use “{q.trim()}” as a custom model id with…</span></div>
               <div className="mp-locked-grid">
@@ -168,17 +204,11 @@ export function ModelPicker({
               </div>
               <div className="mp-locked-grid">
                 {locked
-                  .filter((p) => !ql || p.name.toLowerCase().includes(ql))
+                  .filter((p) => !ql || p.name.toLowerCase().includes(ql) || (ql === 'free' && p.access === 'free-tier'))
                   .map((p) => (
-                    <button
-                      key={p.id}
-                      className="chip"
-                      onClick={() => {
-                        close();
-                        goAddSlot(p.id);
-                      }}
-                    >
+                    <button key={p.id} className="chip" onClick={() => { close(); goAddSlot(p.id); }}>
                       <ProviderDot color={p.color} size={8} /> {p.name}
+                      {p.access === 'free-tier' && <FreeTag small />}
                     </button>
                   ))}
               </div>

@@ -2,7 +2,7 @@
 
 /** How the app talks to a provider. Almost every provider speaks the OpenAI
  * "chat/completions" dialect; Anthropic has its own "messages" API. */
-export type ProviderKind = 'openai' | 'anthropic';
+export type ProviderKind = 'openai' | 'anthropic' | 'puter';
 
 /** How a user can get access to a provider. */
 export type Access = 'keyless' | 'free-tier' | 'paid' | 'local';
@@ -32,6 +32,14 @@ export interface ProviderDef {
   custom?: boolean;
   /** Keyless providers allow only one request at a time per IP. */
   maxConcurrent?: number;
+  /** Minimum time between two requests (shared free tiers). */
+  minGapMs?: number;
+  /** Path for chat requests, default "/chat/completions". */
+  chatPath?: string;
+  /** false = no native tool calling; agents use the text tool protocol. */
+  nativeTools?: boolean;
+  /** Provider whose models are free only when the id ends with ":free". */
+  freeSuffixOnly?: boolean;
 }
 
 export type SlotStatus = 'unknown' | 'ok' | 'error' | 'cooldown';

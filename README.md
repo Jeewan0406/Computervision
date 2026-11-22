@@ -20,10 +20,10 @@ Chat with many AI models in one beautiful app. Start free with no key, add your 
 
 | Feature | What it does |
 |---|---|
-| 💬 **Chat** | A standard chat: streaming answers, Markdown, tables, code highlighting, the model's reasoning (when it shares it), edit and resend, regenerate, history with search, pin and rename, export to Markdown. |
+| 💬 **Chat** | A standard chat with the model picker inside the chat box and friendly model names ("Llama 3.3 70B", "Gemini 2.5 Flash"): streaming answers, Markdown, tables, code highlighting, the model's reasoning (when it shares it), edit and resend, regenerate, history with search, pin and rename, export to Markdown. |
 | 🤖 **Agent** | Give a goal. The agent plans and uses tools step by step: Wikipedia search and reading, web pages, exact maths, a JavaScript sandbox, date and time, long-term memory, workspace files, creating web apps, and asking other models. Every step is shown and can be opened. |
 | ⏰ **24/7 agents** | Scheduled agents run on GitHub Actions in your repository, even when your computer is off, and save Markdown reports that the Agent page shows. |
-| 🆓 **Free model** | Works the moment the page opens. No sign-up, no key. It uses the shared free tier of the Pollinations Classic API. |
+| 🆓 **Free models** | Works the moment the page opens: the shared Pollinations model needs no sign-up and no key. **Puter** adds hundreds of models (GPT, Claude, Gemini, Llama…) with a free Puter account. With the optional **JeeA Gateway**, the site owner can share free NVIDIA and other models with every visitor. Free models carry a green **Free** tag. |
 | 🔑 **API Slots** | Add as many keys as you like for 16 providers, or your own endpoint. Several keys for one provider are rotated, and a key that hits a rate limit is rested while the next one takes over. |
 | ⚖️ **Compare** | Send one prompt to up to 6 models at once. See time to first token, total time, speed and tokens. Vote for the best answer, keep a personal leaderboard, or let an AI judge rank the anonymous answers. |
 | 👥 **Team** | Give different models different roles in one run. Three ways to work: **Pipeline** (one after another), **Mixture** (all answer, one merges) and **Debate** (argue in rounds, a judge decides). Five ready-made teams. |
@@ -33,8 +33,12 @@ Chat with many AI models in one beautiful app. Start free with no key, add your 
 
 <table>
 <tr>
+<td><img src="docs/screenshots/picker.jpg" alt="Model picker inside the chat box with Free tags" /></td>
 <td><img src="docs/screenshots/agent.jpg" alt="Agent view" /></td>
+</tr>
+<tr>
 <td><img src="docs/screenshots/agent-247.jpg" alt="24/7 agents" /></td>
+<td align="center"><img src="docs/screenshots/phone-picker.jpg" alt="Model picker on a phone" width="260" /></td>
 </tr>
 <tr>
 <td><img src="docs/screenshots/compare.jpg" alt="Compare view" /></td>
@@ -57,10 +61,23 @@ You can use any model a provider offers: JeeA! loads the live model list from th
 | Provider | Access | Notes |
 |---|---|---|
 | JeeA Free (Pollinations Classic) | Free, no key | One text model, one request per IP at a time, at least 45 seconds apart ([Pollinations docs](https://github.com/pollinations/pollinations/blob/master/APIDOCS.md)). Good for trying the app. |
-| Google Gemini · Groq · OpenRouter · Mistral · Cerebras · Hugging Face · Cohere · SambaNova · NVIDIA NIM | Free tier with a key | Free tiers and their limits are set by each provider and change often. Check the provider's page. |
+| Puter | Free, no key in JeeA! | Each person signs in with a free Puter account; usage counts against their own Puter allowance ("user pays"). Puter.js is bundled at a pinned version and loads only when chosen. |
+| JeeA Free+ (your gateway) | Free for visitors | Appears when `public/jeea.config.json` names your gateway. It uses **your** free keys (NVIDIA and others), so every visitor shares their limits. See below. |
+| Google Gemini · Groq · OpenRouter (":free" models) · Mistral · Cerebras · Hugging Face · Cohere · SambaNova · NVIDIA NIM | Free tier with a key | Free tiers and their limits are set by each provider and change often. Check the provider's page. NVIDIA may block direct browser calls; use the CORS proxy or the gateway. |
 | OpenAI · Anthropic Claude · DeepSeek · xAI Grok · Together AI | Paid key | |
 | Ollama · LM Studio | Runs on your computer | Turn on CORS in the local server (see the note in the app). |
 | Your own endpoint | Any | Any OpenAI-compatible `/chat/completions` server, or the Anthropic Messages format. |
+
+## Free models for every visitor: the JeeA Gateway
+
+No AI provider offers truly unlimited free use, and an API key placed in a public website can be copied by anyone. The JeeA Gateway solves the second problem: it is a small Cloudflare Worker (`proxy/jeea-gateway.js`) that keeps **your** free keys secret and lets only your site use them, with a per-visitor limit (default 12 requests per minute).
+
+1. Create a free Cloudflare account. In the dashboard, open **Workers & Pages → Create application**, pick the **Hello World** Worker template, name it `jeea-gateway`, and **Deploy**.
+2. Open the Worker, choose **Edit code**, replace everything with the contents of `proxy/jeea-gateway.js`, and **Deploy**.
+3. Open **Settings → Variables and Secrets → Add**. Add `NVIDIA_API_KEY` with type **Secret** (your key from build.nvidia.com). Optionally add `GROQ_API_KEY`, `GEMINI_API_KEY`, `CEREBRAS_API_KEY`, `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` as secrets, and `ALLOWED_ORIGINS` (type Text) = `https://<your-user>.github.io`. **Deploy**.
+4. Copy the Worker address (`https://jeea-gateway.<name>.workers.dev`) into `public/jeea.config.json` → `"gateway"`, and commit. After the site redeploys, every visitor sees **JeeA Free+** in the model picker.
+
+The visitors share your free limits, so for many users add more providers' keys or keep the per-minute limit low.
 
 ## Agents
 
@@ -141,7 +158,8 @@ Requires Node.js 20.19+ or 22.12+ (CI uses Node 22).
 ```
 src/
   lib/            core logic
-    providers.ts    provider catalog (free model + 16 keyed providers)
+    providers.ts    provider catalog (free model, Puter, 16 keyed providers)
+    models.ts       friendly model names and Free detection
     llm.ts          streaming clients: OpenAI-compatible + Anthropic SDK
     runner.ts       key rotation, retries, cooldowns, fallback, logging
     team.ts         Pipeline / Mixture / Debate planner and presets
@@ -155,7 +173,7 @@ src/
 agents/           24/7 runner (run.mjs), its helpers and tasks.json
   components/     model picker, messages, composer, sidebar, dialogs, editor
 public/           logo, icons, manifest, service worker
-proxy/            optional Cloudflare Worker CORS proxy (AI APIs + web reading)
+proxy/            Cloudflare Workers: CORS proxy (cloudflare-worker.js) and JeeA Gateway (jeea-gateway.js)
 tests/            unit tests
 ```
 

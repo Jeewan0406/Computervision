@@ -296,7 +296,6 @@ export function CodeView() {
         }
       >
         <span className="topbar-title strong">CodeFrame</span>
-        <ModelPicker value={model} onChange={(r) => (session ? update(session.id, (x) => void ((x as CodeSession).model = r), false) : setDraftModel(r))} size="sm" />
       </TopBar>
       <div className={`code-layout mobile-${mobileTab}`}>
         <div className="code-chat">
@@ -322,7 +321,7 @@ export function CodeView() {
               </div>
             )}
           </div>
-          <Composer onSend={send} busy={busy} onStop={() => session && stopJobs(session.id)} placeholder={session?.code ? 'Ask for a change…' : 'Describe the app you want…'} />
+          <Composer onSend={send} busy={busy} onStop={() => session && stopJobs(session.id)} placeholder={session?.code ? 'Ask for a change…' : 'Describe the app you want…'} left={<ModelPicker value={model} onChange={(r) => (session ? update(session.id, (x) => void ((x as CodeSession).model = r), false) : setDraftModel(r))} size="sm" />} />
         </div>
         {workspace}
       </div>

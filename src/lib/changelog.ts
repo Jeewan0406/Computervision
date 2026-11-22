@@ -1,5 +1,5 @@
 /** In-app release log ("What's new"). Mirrors CHANGELOG.md. */
-export const APP_VERSION = '1.1.0';
+export const APP_VERSION = '1.2.0';
 
 export interface Release {
   version: string;
@@ -9,6 +9,18 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
+  {
+    version: '1.2.0',
+    date: '2026-11-22',
+    title: 'More free models, friendlier picker',
+    items: [
+      { tag: 'new', feature: 'Puter', text: 'Hundreds of models (GPT, Claude, Gemini, Llama and more) with a free Puter account. No key needed in JeeA!; each person\'s usage counts against their own Puter allowance.' },
+      { tag: 'new', feature: 'JeeA Gateway', text: 'The site owner can share free NVIDIA (and Groq, Gemini, Cerebras, Mistral, OpenRouter free) models with every visitor through a small Cloudflare Worker that keeps the keys secret.' },
+      { tag: 'improved', feature: 'Model picker', text: 'Now inside the chat box in Chat, Agent and CodeFrame, with friendly names such as "Llama 3.3 70B" and a green Free tag on free models. Type "free" to see only free models.' },
+      { tag: 'improved', feature: 'NVIDIA', text: 'Updated NVIDIA NIM defaults and guidance.' },
+      { tag: 'security', feature: 'Dependencies', text: 'Puter.js is bundled at a pinned version and loads only when you choose it; a vulnerable email-parser dependency is forced to its fixed version.' },
+    ],
+  },
   {
     version: '1.1.0',
     date: '2026-11-22',

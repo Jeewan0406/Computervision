@@ -160,11 +160,8 @@ export function ChatView() {
           </>
         }
       >
-        <ModelPicker
-          value={model}
-          onChange={(r) => (session ? update(session.id, (x) => void ((x as ChatSession).model = r), false) : setDraftModel(r))}
-        />
-        {session && <span className="topbar-title" title={session.title}>{session.title}</span>}
+
+        <span className="topbar-title strong" title={session?.title ?? 'New chat'}>{session?.title ?? 'New chat'}</span>
       </TopBar>
 
       <div className="scroll" ref={ref}>
@@ -185,7 +182,18 @@ export function ChatView() {
         )}
       </div>
 
-      <Composer onSend={send} busy={busy} onStop={() => session && stopJobs(session.id)} placeholder={`Message ${modelLabel(model)}…`} />
+      <Composer
+        onSend={send}
+        busy={busy}
+        onStop={() => session && stopJobs(session.id)}
+        placeholder={`Message ${modelLabel(model)}…`}
+        left={
+          <ModelPicker size="sm"
+              value={model}
+              onChange={(r) => (session ? update(session.id, (x) => void ((x as ChatSession).model = r), false) : setDraftModel(r))}
+            />
+        }
+      />
     </div>
   );
 }

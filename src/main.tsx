@@ -4,7 +4,7 @@ import App from './App';
 import { hydrateData } from './lib/data';
 import { hydrateLogs, log } from './lib/logs';
 import { BUILTIN_PROVIDERS, KEYLESS_ID } from './lib/providers';
-import { keylessModels, useSettings } from './lib/settings';
+import { setGateway, setLiveModels, useRuntime, useSettings, gatewayInfo } from './lib/settings';
 import { listModels } from './lib/llm';
 import './styles.css';
 import 'highlight.js/styles/github-dark.css';
@@ -26,7 +26,7 @@ setTimeout(async () => {
   try {
     const ids = await listModels({ provider: p, slot: { apiKey: '' }, corsProxy: '' });
     if (!ids.length) return;
-    keylessModels.splice(0, keylessModels.length, ...ids);
+    setLiveModels(KEYLESS_ID, ids);
     const s = useSettings.getState();
     const fix = <T extends { providerId: string; model: string }>(r: T): T => (r.providerId === KEYLESS_ID && !ids.includes(r.model) ? { ...r, model: ids[0] } : r);
     s.set({ defaultModel: fix(s.defaultModel), fallback: { ...s.fallback, chain: s.fallback.chain.map(fix) } });
@@ -34,6 +34,24 @@ setTimeout(async () => {
     /* offline or blocked: keep the built-in default */
   }
 }, 1500);
+
+// Site config: the owner's JeeA Gateway (free NVIDIA and other models for everyone).
+fetch('./jeea.config.json', { cache: 'no-store' })
+  .then((r) => (r.ok ? r.json() : null))
+  .then(async (cfg) => {
+    if (!cfg?.gateway) return;
+    setGateway(cfg.gateway, cfg.gatewayName);
+    useRuntime.getState().bump();
+    const gw = gatewayInfo();
+    if (!gw) return;
+    try {
+      const ids = await listModels({ provider: gw, slot: { apiKey: '' }, corsProxy: '' });
+      if (ids.length) setLiveModels(gw.id, ids);
+    } catch {
+      /* gateway offline: its suggested models stay */
+    }
+  })
+  .catch(() => undefined);
 
 // Offline cache: repeat visits load from the browser, not from the host.
 if ('serviceWorker' in navigator && import.meta.env.PROD) {

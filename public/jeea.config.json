@@ -1,0 +1,5 @@
+{
+  "about": "Site settings for JeeA!. Set 'gateway' to the URL of your JeeA Gateway (proxy/jeea-gateway.js on Cloudflare Workers) to give every visitor free NVIDIA and other models without their own keys. Leave it empty to switch the gateway off.",
+  "gateway": "",
+  "gatewayName": "JeeA Free+ (NVIDIA & more)"
+}

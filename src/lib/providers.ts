@@ -10,6 +10,8 @@ import type { ProviderDef } from './types';
  * provider's own page.
  */
 export const KEYLESS_ID = 'jeea-free';
+export const PUTER_ID = 'puter';
+export const GATEWAY_ID = 'jeea-gateway';
 
 export const BUILTIN_PROVIDERS: ProviderDef[] = [
   {
@@ -26,8 +28,28 @@ export const BUILTIN_PROVIDERS: ProviderDef[] = [
       'Shared free tier from the Pollinations Classic API: one text model, one request per IP at a time, at least 45 seconds apart. Add your own keys for more models and speed.',
     suggestedModels: ['openai'],
     defaultModel: 'openai',
-    modelLabels: { openai: 'GPT-OSS 20B (free)' },
+    modelLabels: { openai: 'GPT-OSS 20B' },
     maxConcurrent: 1,
+    minGapMs: 45_000,
+    chatPath: '/openai',
+    nativeTools: false,
+  },
+  {
+    id: PUTER_ID,
+    name: 'Puter (free, sign in)',
+    kind: 'puter',
+    baseUrl: 'https://puter.com',
+    access: 'keyless',
+    color: '#0ea5e9',
+    tagline: 'Hundreds of models (GPT, Claude, Gemini, Llama…). Each person signs in with a free Puter account. No key in JeeA!.',
+    keyUrl: 'https://puter.com',
+    docsUrl: 'https://docs.puter.com',
+    note:
+      'Puter uses a "user pays" model: usage counts against the signed-in person\'s own Puter account, which has a free allowance set by Puter. Puter.js runs inside this page once you choose it.',
+    suggestedModels: ['default'],
+    defaultModel: 'default',
+    modelLabels: { default: 'Puter default model' },
+    nativeTools: false,
   },
   {
     id: 'gemini',
@@ -67,6 +89,7 @@ export const BUILTIN_PROVIDERS: ProviderDef[] = [
     tagline: 'Hundreds of models. Ones ending in ":free" cost nothing.',
     keyUrl: 'https://openrouter.ai/settings/keys',
     docsUrl: 'https://openrouter.ai/docs/api-reference/limits',
+    freeSuffixOnly: true,
     note: 'Free (":free") models have per-minute and per-day request caps set by OpenRouter.',
     suggestedModels: ['meta-llama/llama-3.3-70b-instruct:free', 'openai/gpt-oss-20b:free', 'deepseek/deepseek-chat-v3-0324:free'],
     defaultModel: 'meta-llama/llama-3.3-70b-instruct:free',
@@ -145,11 +168,11 @@ export const BUILTIN_PROVIDERS: ProviderDef[] = [
     baseUrl: 'https://integrate.api.nvidia.com/v1',
     access: 'free-tier',
     color: '#76b900',
-    tagline: 'Developer credits for many open models.',
+    tagline: 'Free key from build.nvidia.com: Llama, DeepSeek, Qwen, Gemma, Nemotron and more.',
     keyUrl: 'https://build.nvidia.com/',
     docsUrl: 'https://docs.api.nvidia.com/',
-    note: 'This API may block direct browser calls (CORS). If "Test" fails, set a CORS proxy in Routing settings.',
-    suggestedModels: ['meta/llama-3.3-70b-instruct', 'deepseek-ai/deepseek-r1'],
+    note: 'The free tier is rate-limited by NVIDIA. NVIDIA may block direct browser calls (CORS): if "Test" fails, tick "Use CORS proxy", or let everyone use NVIDIA through the JeeA Gateway.',
+    suggestedModels: ['meta/llama-3.3-70b-instruct', 'deepseek-ai/deepseek-r1', 'qwen/qwen2.5-coder-32b-instruct', 'nvidia/llama-3.1-nemotron-70b-instruct', 'google/gemma-3-27b-it'],
     defaultModel: 'meta/llama-3.3-70b-instruct',
   },
   {

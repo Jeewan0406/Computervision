@@ -2,7 +2,7 @@ import type { AgentSession, AgentStep, Message, MsgMeta } from './types';
 import { useData } from './data';
 import { getProvider } from './settings';
 import { runWithSlots, startJob, endJob } from './runner';
-import { LLMError, streamAnthropicAgent, streamOpenAI, type OAIMessage, type OAITool } from './llm';
+import { LLMError, streamAnthropicAgent, streamOpenAI, streamText, type ChatMsg, type OAIMessage, type OAITool } from './llm';
 import { AGENT_SYSTEM, clip, parseToolCall, stripToolBlock, textProtocolPrompt, validateArgs } from './agentText';
 import { AGENT_TOOLS, TOOL_BY_NAME, delegateIds, type ToolResult } from './tools';
 import { makeFlusher } from './stream';
@@ -53,7 +53,7 @@ export async function runAgent(sid: string, asstId: string) {
   const convo = history.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.role === 'assistant' ? splitThink(m.content).answer : m.content }));
   const system = `${AGENT_SYSTEM}\nToday is ${new Date().toDateString()}.${toolNames.includes('ask_model') ? `\nModels you can ask with ask_model: ${delegateIds().join(', ')}.` : ''}`;
 
-  let mode: Mode = provider.kind === 'anthropic' ? 'anthropic' : provider.access === 'keyless' ? 'text' : 'openai';
+  let mode: Mode = provider.kind === 'anthropic' ? 'anthropic' : provider.kind === 'puter' || provider.nativeTools === false ? 'text' : 'openai';
   if (!tools.length) mode = provider.kind === 'anthropic' ? 'anthropic' : 'text';
 
   const oaiTools: OAITool[] = tools.map((t) => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.parameters } }));
@@ -91,7 +91,7 @@ export async function runAgent(sid: string, asstId: string) {
               const msgs = lastChance ? [...oai, { role: 'user', content: NUDGE }] : oai;
               return streamOpenAI(target, msgs, {}, signal, h, { tools: oaiTools, toolChoice: lastChance ? 'none' : 'auto' });
             }
-            return streamOpenAI(target, lastChance ? [...txt, { role: 'user', content: NUDGE }] : txt, {}, signal, h);
+            return streamText(target, (lastChance ? [...txt, { role: 'user', content: NUDGE }] : txt) as ChatMsg[], {}, signal, h);
           },
         );
       } catch (e) {
