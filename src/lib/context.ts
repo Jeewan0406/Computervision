@@ -14,7 +14,7 @@ export interface PersonalContext {
 export async function personalContext(area: Area, projectId: string | undefined, question: string): Promise<PersonalContext> {
   const st = useSettings.getState();
   const c = st.custom;
-  const customText = c?.enabled && c.areas?.[area] !== false ? customPrompt(c) : '';
+  const customText = c?.enabled && c.areas?.[area] !== false ? customPrompt(c.text ?? '') : '';
   const p = getProject(projectId);
   let projectText = '';
   let project: PersonalContext['project'];

@@ -9,21 +9,15 @@
 // As in Claude, a project's instructions apply only to chats in that project,
 // and its files are shared by every chat in it; chats do not see each other.
 
-export interface CustomText {
-  about: string;
-  style: string;
-}
-
-export function customPrompt(c: CustomText): string {
-  const about = c.about.trim();
-  const style = c.style.trim();
-  if (!about && !style) return '';
+export function customPrompt(text: string): string {
+  const t = text.trim();
+  if (!t) return '';
   return [
     "# The user's custom instructions",
     'The user wrote these for every conversation. Follow them unless a more specific instruction below says otherwise.',
-    about ? `\n## What the user wants you to know about them\n${about}` : '',
-    style ? `\n## How the user wants you to respond\n${style}` : '',
-  ].filter(Boolean).join('\n');
+    '',
+    t,
+  ].join('\n');
 }
 
 // ---------------------------------------------------------------------------

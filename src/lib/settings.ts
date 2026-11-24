@@ -50,14 +50,14 @@ interface SettingsActions {
 export type Area = 'chat' | 'compare' | 'team' | 'agent' | 'code';
 export interface CustomInstructions {
   enabled: boolean;
-  /** What JeeA! should know about the user (role, field, level, place). */
-  about: string;
-  /** How the user wants answers (style, length, format). */
-  style: string;
+  /** The user's instructions, one box (up to CUSTOM_MAX characters). */
+  text: string;
   /** Where they apply. */
   areas: Record<Area, boolean>;
 }
-export const DEFAULT_CUSTOM: CustomInstructions = { enabled: true, about: '', style: '', areas: { chat: true, compare: true, team: true, agent: true, code: true } };
+/** Characters allowed in custom instructions. */
+export const CUSTOM_MAX = 50_000;
+export const DEFAULT_CUSTOM: CustomInstructions = { enabled: true, text: '', areas: { chat: true, compare: true, team: true, agent: true, code: true } };
 
 export const DEFAULT_MODEL: ModelRef = { providerId: KEYLESS_ID, model: 'openai' };
 
@@ -158,13 +158,20 @@ export const useSettings = create<Settings & SettingsActions>()(
     }),
     {
       name: 'jeea.settings',
-      version: 3,
+      version: 4,
       // v2: the Bhutan-inspired "druk" palette replaces violet as the default look.
       // v3: web search runs for every question (the old default was "auto").
+      // v4: custom instructions in one box.
       migrate: (persisted, version) => {
         const st = (persisted ?? {}) as Partial<Settings>;
         if (version < 2 && (!st.accent || st.accent === 'violet')) st.accent = 'druk';
         if (version < 3 && (!st.webMode || st.webMode === 'auto')) st.webMode = 'on';
+        // v4: custom instructions became one box; keep any text from the old two boxes.
+        if (version < 4 && st.custom) {
+          const old = st.custom as Partial<CustomInstructions> & { about?: string; style?: string };
+          const text = old.text ?? [old.about, old.style].map((x) => (x ?? '').trim()).filter(Boolean).join('\n\n');
+          st.custom = { enabled: old.enabled !== false, text, areas: { ...DEFAULT_CUSTOM.areas, ...(old.areas ?? {}) } };
+        }
         return st as Settings & SettingsActions;
       },
       storage,

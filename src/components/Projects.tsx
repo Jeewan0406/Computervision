@@ -18,6 +18,8 @@ export function ProjectBar() {
   const active = projects.find((p) => p.id === activeId);
   const count = (id: string) => Object.values(sessions).filter((s) => s.projectId === id).length;
   return (
+    <div className="project-block">
+      <div className="project-label">Projects</div>
     <div className="project-bar">
       <button ref={ref} className={`project-switch${active ? ' in-project' : ''}`} onClick={() => setOpen((o) => !o)} aria-label="Choose project" title="Projects keep related chats together, with shared instructions and files">
         {active ? <FolderOpen size={15} /> : <Layers size={15} />}
@@ -29,6 +31,9 @@ export function ProjectBar() {
           <Settings2 size={14} />
         </button>
       )}
+      <button className="icon-btn xs" title="New project" aria-label="New project" onClick={() => create()}>
+        <Plus size={15} />
+      </button>
       <Popover anchor={ref} open={open} onClose={() => setOpen(false)} width={270}>
         <div className="project-menu" role="menu">
           <button role="menuitem" className={`pm-item${!active ? ' on' : ''}`} onClick={() => { setActive(null); setOpen(false); }}>
@@ -45,6 +50,7 @@ export function ProjectBar() {
           </button>
         </div>
       </Popover>
+    </div>
     </div>
   );
 }
@@ -203,7 +209,7 @@ export function ContextBadges({ area, projectId }: { area: import('../lib/settin
   const { projects, activeId, edit } = useProjects();
   const pid = projectId === undefined ? activeId : projectId;
   const p = projects.find((x) => x.id === pid);
-  const customOn = custom?.enabled && custom.areas?.[area] !== false && !!(custom.about.trim() || custom.style.trim());
+  const customOn = custom?.enabled && custom.areas?.[area] !== false && !!custom.text?.trim();
   if (!p && !customOn && !rulesOn) return null;
   return (
     <span className="ctx-badges">

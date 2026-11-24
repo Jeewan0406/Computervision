@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { CheckCircle2, Info, Trophy, X, XCircle } from 'lucide-react';
 import { useUI } from '../lib/ui';
-import { useSettings, type Accent, type Theme, type Area, modelKey, allProviders, gatewayInfo } from '../lib/settings';
+import { useSettings, type Accent, type Theme, type Area, CUSTOM_MAX, modelKey, allProviders, gatewayInfo } from '../lib/settings';
 import type { WebMode } from '../lib/web';
 import { WEB_HELP } from './Web';
 import { DEFAULT_RULES, roughTokens, rulesText } from '../lib/rules';
@@ -167,13 +167,13 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
 }
 
 const AREAS: [Area, string][] = [['chat', 'Chat'], ['compare', 'Compare'], ['team', 'Team'], ['agent', 'Agent'], ['code', 'CodeFrame']];
-const CUSTOM_MAX = 4000;
 
 /** The user's own custom instructions, for every conversation in the chosen areas. */
 function CustomSection() {
   const c = useSettings((s) => s.custom);
   const set = useSettings((s) => s.set);
   const patch = (p: Partial<typeof c>) => set({ custom: { ...c, ...p } });
+  const tokens = Math.ceil((c.text ?? '').length / 4);
   return (
     <section className="set-section custom-section" id="custom-instructions">
       <h3>Custom instructions</h3>
@@ -183,13 +183,23 @@ function CustomSection() {
         <input type="checkbox" className="switch" checked={c.enabled} onChange={(e) => patch({ enabled: e.target.checked })} aria-label="Use my custom instructions" />
       </label>
       <label className="field">
-        <span className="field-label">What should JeeA! know about you? <span className="muted xs">{c.about.length}/{CUSTOM_MAX}</span></span>
-        <textarea rows={4} maxLength={CUSTOM_MAX} value={c.about} placeholder="e.g. I am an electrical engineer in Thimphu, Bhutan. I study for a master's in renewable energy. I use SI units." onChange={(e) => patch({ about: e.target.value })} aria-label="What should JeeA! know about you" />
+        <span className="field-label">
+          Your instructions
+          <span className="muted xs">{(c.text ?? '').length.toLocaleString()} / {CUSTOM_MAX.toLocaleString()} characters · ≈{tokens.toLocaleString()} tokens</span>
+        </span>
+        <textarea
+          className="custom-text"
+          rows={12}
+          maxLength={CUSTOM_MAX}
+          value={c.text ?? ''}
+          placeholder="e.g. Plain English. Start with the answer. Use SI units. Show formulas with a worked example. Cite sources in APA 7th."
+          onChange={(e) => patch({ text: e.target.value })}
+          aria-label="Your custom instructions"
+        />
       </label>
-      <label className="field">
-        <span className="field-label">How should JeeA! respond? <span className="muted xs">{c.style.length}/{CUSTOM_MAX}</span></span>
-        <textarea rows={4} maxLength={CUSTOM_MAX} value={c.style} placeholder="e.g. Plain English. Start with the answer. Show formulas with a worked example. Keep answers under 400 words unless I ask for more." onChange={(e) => patch({ style: e.target.value })} aria-label="How should JeeA! respond" />
-      </label>
+      {tokens > 6000 && (
+        <p className="muted xs warn-text">Long instructions are sent with every request. Some free models allow only a few thousand tokens per request and may refuse; choose a model with a large limit.</p>
+      )}
       <div className="set-row wrap">
         <span>Apply in</span>
         <div className="area-checks">

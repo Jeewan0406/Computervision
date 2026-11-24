@@ -149,7 +149,7 @@ test('OpenAlex: last 2 years first, widened to 5, peer-reviewed metadata kept', 
   const p0 = new URL(urls[0]).searchParams;
   assert.equal(p0.get('search'), 'hydropower Bhutan');
   assert.equal(p0.get('filter'), 'from_publication_date:2024-11-22,has_abstract:true,is_retracted:false');
-  assert.equal(p0.get('per-page'), '4');
+  assert.equal(p0.get('per-page'), '5');
   assert.match(p0.get('select') ?? '', /abstract_inverted_index/);
   assert.match(new URL(urls[1]).searchParams.get('filter') ?? '', /from_publication_date:2021-11-22/);
   assert.equal(r.length, 2);

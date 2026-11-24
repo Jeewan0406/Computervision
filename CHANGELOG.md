@@ -2,6 +2,17 @@
 
 All notable changes to JeeA! are listed here. The same notes appear in the app under **What's new** (✨).
 
+## 1.8.0 — 2026-11-24 — One big instructions box, a stricter answer standard, projects on top
+
+### New
+- **Answer standard** (`src/lib/standard.ts`) — always sent to every model in Chat, Compare, Team and Agent: length that fits the question; only trusted, recent sources (research, institutions, news organisations, leading manufacturers; never Wikipedia, blogs, forums, social media or unverified sites); two or more sources per key claim; facts and figures with units and dates; APA 7th citations and a reference list; "(unverified)" when nothing trusted is found.
+- **Company sources** — new `maker` source type. The trusted-news job reads the newsrooms of NVIDIA, Microsoft, Google, Apple, Samsung, Siemens, Toyota, OpenAI, Huawei and GE Vernova (first run: 578 items from 37 of 41 sources; Intel, IBM, ABB and Schneider Electric removed). The gateway's trusted-site list adds ISO, IEC and leading manufacturers.
+
+### Improved
+- **Custom instructions** — one box of up to 50,000 characters with a live character and token count; text from the old two boxes is kept (settings migration v4).
+- **More sources** — up to 12 results per question (was 8): up to 9 from the trusted-news index for news questions (7 otherwise) and 5 from OpenAlex.
+- **Projects** — the project switcher, with New project and settings buttons, is at the top of the left panel on every page.
+
 ## 1.7.0 — 2026-11-24 — Custom instructions and projects
 
 ### New

@@ -1,5 +1,5 @@
 /** In-app release log ("What's new"). Mirrors CHANGELOG.md. */
-export const APP_VERSION = '1.7.0';
+export const APP_VERSION = '1.8.0';
 
 export interface Release {
   version: string;
@@ -9,6 +9,18 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
+  {
+    version: '1.8.0',
+    date: '2026-11-24',
+    title: 'One big instructions box, a stricter answer standard, projects on top',
+    items: [
+      { tag: 'improved', feature: 'Custom instructions', text: 'Now one box that holds up to 50,000 characters, with a live character and token count. Text from the old two boxes was kept and joined.' },
+      { tag: 'new', feature: 'Answer standard', text: 'Every model in Chat, Compare, Team and Agent now follows JeeA!\'s answer standard: length that fits the question (short, medium or long), only trusted and recent sources (research, institutions, news organisations, leading manufacturers; never Wikipedia, blogs or unverified sites), two or more sources per key claim, facts and figures with dates and units, and APA 7th citations with a reference list.' },
+      { tag: 'new', feature: 'Company sources', text: 'The hourly trusted-news job now also reads the newsrooms of NVIDIA, Microsoft, Google, Apple, Samsung, Siemens, Toyota, OpenAI, Huawei and GE Vernova (578 items from 37 sources in the first run). The gateway\'s trusted-site search adds standards bodies and leading manufacturers.' },
+      { tag: 'improved', feature: 'More sources', text: 'Each search now gives models up to 12 results (was 8), so claims can be backed by several sources.' },
+      { tag: 'improved', feature: 'Projects', text: 'The project switcher, with New project and settings buttons, is now at the top of the left panel and visible on every page.' },
+    ],
+  },
   {
     version: '1.7.0',
     date: '2026-11-24',

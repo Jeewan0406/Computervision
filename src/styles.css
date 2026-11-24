@@ -944,3 +944,9 @@ label.chip { cursor: pointer; }
 .ctx-badges { display: inline-flex; gap: 5px; flex-wrap: wrap; }
 .ctx-badge { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; font-size: 11px; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); }
 .ctx-badge:hover { color: var(--text); border-color: var(--border-strong); }
+.custom-section textarea.custom-text { min-height: 280px; font-size: 13px; }
+.warn-text { color: var(--warn-text); }
+/* Projects at the top of the left panel (v1.8) */
+.project-block { margin: 2px 0 12px; }
+.project-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 2px 6px; }
+.project-block .project-bar { margin: 0; }

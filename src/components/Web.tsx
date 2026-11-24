@@ -36,7 +36,7 @@ const chipText = (s: WebSource) => {
     const more = (s.authors?.length ?? 0) > 1 ? ' et al.' : '';
     return `📄 ${first}${more} ${s.date?.slice(0, 4) ?? ''} · ${short}`;
   }
-  const icon = s.kind === 'official' ? '🏛 ' : s.kind === 'news' ? '📰 ' : '';
+  const icon = s.kind === 'official' ? '🏛 ' : s.kind === 'news' ? '📰 ' : s.kind === 'maker' ? '🏭 ' : '';
   return `${icon}${s.site} · ${short}`;
 };
 

@@ -9,6 +9,7 @@ import { streamReply } from '../lib/reply';
 import { prepareWeb, joinSystem } from '../lib/webrun';
 import { rulesText } from '../lib/rules';
 import { personalContext } from '../lib/context';
+import { ANSWER_STANDARD } from '../lib/standard';
 import { splitThink } from '../lib/text';
 import { titleFrom, uid } from '../lib/utils';
 import { withApa } from '../lib/apa';
@@ -81,7 +82,7 @@ async function ask(sessionId: string) {
     jobId: `${sessionId}:${asstId}`,
     locate: (x) => (x as ChatSession).messages.find((m) => m.id === asstId),
     ref: s.model,
-    messages: toApiMessages(joinSystem(rulesText(), pc.text, s.system, w.prompt), history),
+    messages: toApiMessages(joinSystem(ANSWER_STANDARD, rulesText(), pc.text, s.system, w.prompt), history),
     params: s.params,
     feature: 'chat',
   });

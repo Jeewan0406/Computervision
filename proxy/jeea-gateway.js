@@ -182,6 +182,9 @@ const TRUSTED_DOMAINS = [
   'nature.com', 'science.org', 'thelancet.com', 'nejm.org', 'bmj.com', 'pnas.org', 'cell.com', 'plos.org', 'springer.com', 'sciencedirect.com',
   'wiley.com', 'tandfonline.com', 'sagepub.com', 'oup.com', 'cambridge.org', 'ieee.org', 'acm.org', 'arxiv.org', 'doi.org',
   'bbc.co.uk', 'bbc.com', 'npr.org', 'dw.com', 'aljazeera.com', 'france24.com', 'theguardian.com', 'cbc.ca', 'apnews.com', 'reuters.com', 'bbs.bt', 'kuenselonline.com',
+  // Standards bodies and leading manufacturers (their own products, specifications and data).
+  'iso.org', 'iec.ch', 'siemens.com', 'siemens-energy.com', 'abb.com', 'se.com', 'gevernova.com', 'hitachienergy.com', 'sma.de', 'huawei.com', 'bosch.com',
+  'tesla.com', 'toyota-global.com', 'global.toyota', 'samsung.com', 'apple.com', 'microsoft.com', 'blog.google', 'nvidia.com', 'intel.com', 'amd.com', 'ibm.com', 'cisco.com', 'openai.com', 'anthropic.com',
 ];
 /** Government, university and intergovernmental addresses are trusted too. */
 const TRUSTED_SUFFIX = /(\.gov|\.gov\.[a-z]{2}|\.edu|\.edu\.[a-z]{2}|\.ac\.[a-z]{2}|\.int|\.mil)$/i;

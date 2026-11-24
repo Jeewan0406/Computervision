@@ -3,13 +3,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { customPrompt, chunkFiles, rankChunks, knowledgeBlock, projectPrompt, priorityNote, tokens } from '../src/lib/instructions.ts';
 
-test('custom instructions: empty gives nothing; fields become labelled sections', () => {
-  assert.equal(customPrompt({ about: '  ', style: '' }), '');
-  const p = customPrompt({ about: 'I am an engineer in Thimphu.', style: 'Plain English, short answers.' });
-  assert.match(p, /^# The user's custom instructions/);
-  assert.match(p, /## What the user wants you to know about them\nI am an engineer in Thimphu\./);
-  assert.match(p, /## How the user wants you to respond\nPlain English, short answers\./);
-  assert.ok(!customPrompt({ about: 'x', style: '' }).includes('How the user wants'));
+test('custom instructions: one box; empty gives nothing; 50,000 characters kept whole', () => {
+  assert.equal(customPrompt('   '), '');
+  const p = customPrompt('Plain English. Use SI units.');
+  assert.equal(p, "# The user's custom instructions\nThe user wrote these for every conversation. Follow them unless a more specific instruction below says otherwise.\n\nPlain English. Use SI units.");
+  const long = 'x'.repeat(50_000);
+  assert.ok(customPrompt(long).endsWith(long));
 });
 
 test('priority: hard rules first, then the most specific instruction wins', () => {
@@ -75,4 +74,23 @@ test('project prompt: instructions, file note and citation rule', () => {
   assert.match(p, /Cite them by file name and page or section, for example \(report\.pdf, p\. 3\)/);
   const noFiles = projectPrompt({ name: 'Empty', instructions: '' }, knowledgeBlock([], '', 10), 0);
   assert.ok(!noFiles.includes('Project files'));
+});
+
+import { ANSWER_STANDARD } from '../src/lib/standard.ts';
+test('answer standard: length by context, trusted latest sources, several per claim, APA 7th, figures', () => {
+  for (const phrase of [
+    'Length fits the question',
+    'one to three sentences',
+    'full answer with sections',
+    'Never use or cite Wikipedia, personal blogs, forums, social media or unverified sites',
+    'established news organisations',
+    'leading manufacturers and companies',
+    'Prefer the newest results',
+    'two, three, four or more independent results',
+    'Give numbers with their units, dates, places and groups',
+    'APA 7th',
+    '"References" list',
+    '(unverified)',
+  ]) assert.ok(ANSWER_STANDARD.includes(phrase), phrase);
+  assert.ok(ANSWER_STANDARD.length < 3000, 'kept short: it goes with every request');
 });

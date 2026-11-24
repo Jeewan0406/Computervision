@@ -93,6 +93,8 @@ export function Sidebar() {
           <button className="icon-btn only-mobile" onClick={() => setNav(false)} aria-label="Close menu"><X size={18} /></button>
         </div>
 
+        <ProjectBar />
+
         <button className="btn primary block new-btn" onClick={newSession}>
           <Plus size={16} /> New {KIND_LABEL[kind]}
         </button>
@@ -110,7 +112,6 @@ export function Sidebar() {
 
         {view !== 'keys' && view !== 'logs' && view !== 'images' && (
           <div className="history">
-            <ProjectBar />
             <div className="history-search">
               <Search size={14} />
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${KIND_LABEL[kind]}s`} />

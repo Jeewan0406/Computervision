@@ -16,7 +16,7 @@
 export type WebMode = 'auto' | 'on' | 'off';
 
 /** What a result is, so the model can judge it. */
-export type SourceKind = 'scholarly' | 'official' | 'news' | 'web';
+export type SourceKind = 'scholarly' | 'official' | 'news' | 'maker' | 'web';
 
 export interface WebSource {
   n: number;
@@ -156,7 +156,7 @@ export async function gatewaySearch(gateway: string, q: string, news: boolean, f
     const data = (await getJson(fetchFn, `${gateway.replace(/\/+$/, '')}/v1/search`, signal, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ query: q, max_results: 5, topic: news ? 'news' : 'general' }),
+      body: JSON.stringify({ query: q, max_results: 8, topic: news ? 'news' : 'general' }),
     })) as { results?: { title?: string; url?: string; content?: string; published_date?: string }[] };
     return (data.results ?? [])
       .filter((r) => r.url && r.content && isTrustedUrl(r.url))
@@ -206,7 +206,7 @@ interface OAWork {
 }
 
 /** Recent scholarly works (with abstracts) from OpenAlex. Last 2 years; widened to 5 when fewer than 2 are found. */
-export async function openAlexSearch(q: string, fetchFn: FetchFn, signal: AbortSignal, now = new Date(), limit = 4): Promise<WebSource[]> {
+export async function openAlexSearch(q: string, fetchFn: FetchFn, signal: AbortSignal, now = new Date(), limit = 5): Promise<WebSource[]> {
   const fields = 'id,doi,display_name,publication_date,type,primary_location,authorships,abstract_inverted_index';
   const get = async (years: number) => {
     const from = new Date(now.getTime());
@@ -330,7 +330,7 @@ export async function webSearch(opts: {
       all.push(s);
     }
   }
-  const sources = all.slice(0, opts.max ?? 8).map((s, i) => ({ ...s, n: i + 1 }));
+  const sources = all.slice(0, opts.max ?? 12).map((s, i) => ({ ...s, n: i + 1 }));
   return { sources, errors };
 }
 
@@ -361,6 +361,7 @@ const KIND_LABEL: Record<SourceKind, string> = {
   scholarly: 'scholarly work',
   official: 'official publication (government or intergovernmental body)',
   news: 'news organisation report (use for recent events; weaker than official or scholarly sources)',
+  maker: "manufacturer or company document (reliable for its own products, specifications and data; treat claims that praise its own products as the company's claim)",
   web: 'web page from a trusted domain',
 };
 
@@ -389,8 +390,8 @@ export function webPrompt(query: string, sources: WebSource[], now = new Date(),
     return `${head}\nWeb search results: a search of trusted sources for "${query}" found nothing useful (or could not be reached). Do not present outside facts as checked: say that no trusted source was found, and mark anything from your own knowledge as unverified and possibly out of date.`;
   }
   const cite = opts.rules
-    ? 'Cite in APA 7th style: copy each result\'s "APA 7th in-text" citation exactly and write it in the format the answer rules require (a coloured link to the result\'s URL, then a ↗ link). End with a reference list that copies the "APA 7th reference" of every result you cited, and only those, in alphabetical order. Never cite a bare number such as [1].'
-    : 'Cite in APA 7th style: after each sentence that uses a result, copy its "APA 7th in-text" citation exactly, e.g. (United Nations, 2026a). End with a "References" list that copies the "APA 7th reference" of every result you cited, and only those, in alphabetical order. Never cite a bare number such as [1].';
+    ? 'Cite in APA 7th style: copy each result\'s "APA 7th in-text" citation exactly and write it in the format the answer rules require (a coloured link to the result\'s URL, then a ↗ link). Back each key claim with two, three, four or more of these results when they agree, cited together. End with a reference list that copies the "APA 7th reference" of every result you cited, and only those, in alphabetical order. Never cite a bare number such as [1].'
+    : 'Cite in APA 7th style: after each sentence that uses a result, copy its "APA 7th in-text" citation exactly. Back each key claim with two, three, four or more of these results when they agree, cited together in one parenthesis, e.g. (United Nations, 2026a; Lee & Patel, 2026). End with a "References" list that copies the "APA 7th reference" of every result you cited, and only those, in alphabetical order. Never cite a bare number such as [1].';
   return [
     head,
     `Web search results for "${query}", fetched just now (${sources.length}):`,

@@ -1,7 +1,7 @@
 {
   "name": "jeea",
   "private": true,
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "JeeA! — one beautiful chat for many AI models: free models, your own API keys, side-by-side compare, multi-role teams and a live CodeFrame.",
   "type": "module",
   "scripts": {

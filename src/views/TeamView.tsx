@@ -9,6 +9,7 @@ import { streamReply } from '../lib/reply';
 import { prepareWeb, joinSystem } from '../lib/webrun';
 import { rulesText } from '../lib/rules';
 import { personalContext } from '../lib/context';
+import { ANSWER_STANDARD } from '../lib/standard';
 import { linkCitations } from '../lib/web';
 import { MODE_INFO, TEAM_PRESETS, newStep, planTeam, presetRoles } from '../lib/team';
 import { splitThink } from '../lib/text';
@@ -57,7 +58,7 @@ async function executeRun(sid: string, runId: string, input: string) {
   if (w.aborted) return;
   const s = useData.getState().sessions[sid] as TeamSession;
   const pc = await personalContext('team', s.projectId, input);
-  const waves = planTeam(s, input, w.prompt, joinSystem(rulesText(), pc.text));
+  const waves = planTeam(s, input, w.prompt, joinSystem(ANSWER_STANDARD, rulesText(), pc.text));
   const done: { step: TeamStep; content: string }[] = [];
   let failed = false;
 

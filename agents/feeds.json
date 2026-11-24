@@ -1,5 +1,5 @@
 {
-  "about": "Trusted sources read by the News workflow (agents/news.mjs). Each source lists one or more feed addresses; the first that works is used. type: intergovernmental | government | scholarly | news | maker (leading manufacturers and companies: their own newsrooms). 'org' is the group author used in APA 7th citations. Checked from GitHub's runners on 2026-11-24; sources that refused or no longer exist (UNICEF, UNHCR, UNEP, WMO, IMF, World Bank, FAO, WFP, UNFCCC, OECD, ADB, Kuensel) were removed.",
+  "about": "Trusted sources read by the News workflow (agents/news.mjs). Each source lists one or more feed addresses; the first that works is used. type: intergovernmental | government | scholarly | news | maker (leading manufacturers and companies: their own newsrooms). 'org' is the group author used in APA 7th citations. Checked from GitHub's runners on 2026-11-24; sources that refused or no longer exist (UNICEF, UNHCR, UNEP, WMO, IMF, World Bank, FAO, WFP, UNFCCC, OECD, ADB, Kuensel) were removed. Company newsrooms checked on 2026-11-24; Intel, IBM, ABB and Schneider Electric had no working feed and were removed.",
   "sources": [
     {
       "id": "un-news",
@@ -262,23 +262,6 @@
       ]
     },
     {
-      "id": "intel",
-      "org": "Intel",
-      "type": "maker",
-      "urls": [
-        "https://newsroom.intel.com/feed/"
-      ]
-    },
-    {
-      "id": "ibm",
-      "org": "IBM",
-      "type": "maker",
-      "urls": [
-        "https://newsroom.ibm.com/press-releases?pagetemplate=rss",
-        "https://newsroom.ibm.com/rss"
-      ]
-    },
-    {
       "id": "samsung",
       "org": "Samsung",
       "type": "maker",
@@ -293,23 +276,6 @@
       "urls": [
         "https://press.siemens.com/global/en/rss.xml",
         "https://www.siemens.com/global/en/company/press.rss"
-      ]
-    },
-    {
-      "id": "abb",
-      "org": "ABB",
-      "type": "maker",
-      "urls": [
-        "https://new.abb.com/news/feed",
-        "https://global.abb/group/en/media/rss"
-      ]
-    },
-    {
-      "id": "schneider",
-      "org": "Schneider Electric",
-      "type": "maker",
-      "urls": [
-        "https://www.se.com/ww/en/about-us/newsroom/news/rss.xml"
       ]
     },
     {

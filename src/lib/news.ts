@@ -2,7 +2,7 @@
 // .github/workflows/news.yml). Pure functions plus a cached fetch.
 import type { WebSource } from './web';
 
-export type NewsType = 'intergovernmental' | 'government' | 'scholarly' | 'news';
+export type NewsType = 'intergovernmental' | 'government' | 'scholarly' | 'news' | 'maker';
 
 /** One item, with short keys to keep the file small. */
 export interface NewsItem {
@@ -53,7 +53,7 @@ export function topicWords(query: string): string[] {
   );
 }
 
-const WEIGHT: Record<NewsType, number> = { intergovernmental: 1.3, government: 1.25, scholarly: 1.2, news: 1 };
+const WEIGHT: Record<NewsType, number> = { intergovernmental: 1.3, government: 1.25, scholarly: 1.2, maker: 1.05, news: 1 };
 
 /**
  * Best items for a question. With topic words: items whose title or summary
@@ -116,7 +116,7 @@ function toSource(it: NewsItem): WebSource {
       return it.o;
     }
   })();
-  const kind = it.k === 'news' ? 'news' : it.k === 'scholarly' ? 'scholarly' : 'official';
+  const kind = it.k === 'news' ? 'news' : it.k === 'scholarly' ? 'scholarly' : it.k === 'maker' ? 'maker' : 'official';
   return {
     n: 0,
     title: it.t,
@@ -125,11 +125,11 @@ function toSource(it: NewsItem): WebSource {
     site: it.n ?? it.o ?? host,
     date: it.d,
     kind,
-    part: kind === 'scholarly' ? "Summary from the journal's feed" : "Summary from the organisation's feed",
+    part: kind === 'scholarly' ? "Summary from the journal's feed" : kind === 'maker' ? "Summary from the company's newsroom feed" : "Summary from the organisation's feed",
     authors: it.a?.length ? it.a : undefined,
     org: it.o,
     venue: kind === 'scholarly' ? it.o : it.n ?? it.o,
-    workType: it.k === 'intergovernmental' ? 'intergovernmental body' : it.k === 'government' ? 'government' : kind === 'scholarly' ? 'journal article' : 'news report',
+    workType: it.k === 'intergovernmental' ? 'intergovernmental body' : it.k === 'government' ? 'government' : kind === 'scholarly' ? 'journal article' : kind === 'maker' ? 'company newsroom' : 'news report',
   };
 }
 

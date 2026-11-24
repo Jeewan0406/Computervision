@@ -125,7 +125,7 @@ export function apaInput(s: WebSource): ApaInput {
   if (s.kind === 'scholarly') {
     return { title: s.title, url: s.url, date: s.date, authors: s.authors, org: s.venue, venue: s.venue, doi: s.doi, style: 'scholarly' };
   }
-  if (s.kind === 'official' || s.kind === 'news') {
+  if (s.kind === 'official' || s.kind === 'news' || s.kind === 'maker') {
     return { title: s.title, url: s.url, date: s.date, authors: s.authors, org: s.org ?? s.site, venue: s.site, style: 'dated' };
   }
   return { title: s.title, url: s.url, date: s.date, org: s.site, style: s.date ? 'dated' : 'web' };

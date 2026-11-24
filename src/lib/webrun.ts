@@ -49,7 +49,7 @@ export async function prepareWeb(
       news: d.news,
       gateway: gw ? gw.baseUrl.replace(/\/v1$/, '') : null,
       signal: ctrl.signal,
-      trusted: async (signal) => searchNews(await loadNewsIndex(newsIndexUrl(), undefined, signal), query, { text, allowNews, max: d.news ? 6 : 3 }),
+      trusted: async (signal) => searchNews(await loadNewsIndex(newsIndexUrl(), undefined, signal), query, { text, allowNews, max: d.news ? 9 : 7 }),
     });
     const errors = found.errors;
     const sources = withApa(found.sources);
