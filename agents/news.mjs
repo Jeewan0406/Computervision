@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Trusted-news collector for JeeA!. Reads the feeds in agents/feeds.json,
-// keeps the last 4 days of dated items and writes <out>/latest.json, which the
+// keeps recent dated items (news 4 days, official 14, journals 30) and writes <out>/latest.json, which the
 // website searches before answering. Run by .github/workflows/news.yml.
 //
 //   node agents/news.mjs [outDir]
@@ -65,5 +65,8 @@ await writeFile(join(OUT, 'README.md'), '# JeeA! trusted news\n\nWritten every h
 
 const ok = index.sources.filter((s) => s.ok);
 console.log(`Trusted news: ${index.items.length} items from ${ok.length} of ${index.sources.length} sources.`);
-for (const s of index.sources) console.log(`${s.ok ? 'OK  ' : 'FAIL'} ${s.id.padEnd(14)} ${s.ok ? `${String(s.items).padStart(3)} recent items  ${s.url}` : s.error}`);
+for (const s of index.sources) {
+  const detail = s.ok ? `${String(s.items).padStart(3)} kept of ${s.parsed} (${s.dated} dated, newest ${s.newest ?? 'none'})  ${s.url}` : s.error;
+  console.log(`${s.ok ? 'OK  ' : 'FAIL'} ${s.id.padEnd(14)} ${detail}`);
+}
 if (!ok.length) process.exit(1);

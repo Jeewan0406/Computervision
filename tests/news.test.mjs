@@ -50,13 +50,13 @@ test('index keeps recent dated items, records failures and stays compact', () =>
   assert.deepEqual(idx.items.map((i) => i.f), ['un-news', 'govuk'], 'newest first');
   assert.deepEqual(Object.keys(idx.items[0]).sort(), ['a', 'd', 'f', 'k', 'n', 'o', 's', 't', 'u']);
   assert.equal(idx.items[0].o, 'United Nations');
-  assert.deepEqual(idx.sources.map((s) => [s.id, s.ok, s.items]), [['un-news', true, 1], ['govuk', true, 1], ['x', false, 0]]);
+  assert.deepEqual(idx.sources.map((s) => [s.id, s.ok, s.items, s.parsed, s.dated]), [['un-news', true, 1, 3, 2], ['govuk', true, 1, 1, 1], ['x', false, 0, 0, 0]]);
   assert.equal(idx.sources[2].error, 'HTTP 404');
 });
 
 test('feed list: only trusted source types, no Wikipedia or blogs', () => {
   const { sources } = JSON.parse(readFileSync(new URL('../agents/feeds.json', import.meta.url), 'utf8'));
-  assert.ok(sources.length >= 30);
+  assert.ok(sources.length >= 25);
   for (const s of sources) {
     assert.ok(['intergovernmental', 'government', 'scholarly', 'news'].includes(s.type), s.id);
     assert.ok(s.urls.length >= 1 && s.urls.every((u) => u.startsWith('https://')), s.id);

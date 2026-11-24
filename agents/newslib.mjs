@@ -68,7 +68,7 @@ export function parseFeed(xml) {
       const guid = /<guid(?:\s[^>]*)?>([\s\S]*?)<\/guid>/i.exec(b);
       if (guid && /^https?:\/\//.test(textOf(guid[1]))) link = textOf(guid[1]);
     }
-    const date = toIso(tag(b, atom ? ['published', 'updated'] : ['pubDate', 'dc:date', 'prism:publicationDate', 'updated']));
+    const date = toIso(tag(b, atom ? ['published', 'updated', 'dc:date'] : ['pubDate', 'dc:date', 'prism:publicationDate', 'prism:coverDate', 'a10:updated', 'updated']));
     const summary = textOf(tag(b, atom ? ['summary', 'content'] : ['description', 'content:encoded', 'summary']));
     const authors = (atom ? tagsAll(b, 'author').map((a) => textOf(tag(a, ['name']))) : tagsAll(b, 'dc:creator').map(textOf))
       .flatMap((a) => a.split(/\s*(?:;|,\s*and\s|\sand\s)\s*/))
@@ -85,8 +85,10 @@ const clip = (s, n) => (s.length > n ? `${s.slice(0, n).replace(/\s+\S*$/, '')}â
  * Build the index the website reads. Keeps recent, dated items only.
  * results: [{ source, url, ok, error?, items? }]
  */
-export function buildIndex(results, now = new Date(), { maxAgeHours = 96, perSource = 25, summaryChars = 320 } = {}) {
-  const cutoff = now.getTime() - maxAgeHours * 3600_000;
+/** How long items stay in the index: news moves fast, journals slowly. */
+export const MAX_AGE_HOURS = { news: 96, government: 14 * 24, intergovernmental: 14 * 24, scholarly: 30 * 24 };
+
+export function buildIndex(results, now = new Date(), { maxAgeHours = MAX_AGE_HOURS, perSource = 25, summaryChars = 320 } = {}) {
   const future = now.getTime() + 36 * 3600_000; // some feeds date items a day ahead
   const items = [];
   const sources = [];
@@ -94,8 +96,12 @@ export function buildIndex(results, now = new Date(), { maxAgeHours = 96, perSou
   for (const r of results) {
     const s = r.source;
     let kept = 0;
+    const all = r.items ?? [];
+    const dated = all.filter((it) => it.date);
+    const newest = dated.map((it) => it.date).sort().pop() ?? null;
+    const cutoff = now.getTime() - (typeof maxAgeHours === 'number' ? maxAgeHours : maxAgeHours[s.type] ?? 96) * 3600_000;
     if (r.ok) {
-      const fresh = (r.items ?? [])
+      const fresh = all
         .filter((it) => it.date && Date.parse(it.date) >= cutoff && Date.parse(it.date) <= future)
         .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
       for (const it of fresh) {
@@ -110,7 +116,7 @@ export function buildIndex(results, now = new Date(), { maxAgeHours = 96, perSou
         items.push(row);
       }
     }
-    sources.push({ id: s.id, org: s.org, type: s.type, ok: !!r.ok, url: r.url ?? null, items: kept, ...(r.error ? { error: String(r.error).slice(0, 160) } : {}) });
+    sources.push({ id: s.id, org: s.org, type: s.type, ok: !!r.ok, url: r.url ?? null, items: kept, parsed: all.length, dated: dated.length, newest, ...(r.error ? { error: String(r.error).slice(0, 160) } : {}) });
   }
   items.sort((a, b) => Date.parse(b.d) - Date.parse(a.d));
   return { version: 1, generatedAt: now.toISOString(), maxAgeHours, sources, items };
