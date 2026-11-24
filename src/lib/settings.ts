@@ -31,6 +31,8 @@ export interface Settings {
   webMode: WebMode;
   /** Use established news organisations (BBC, NPR, DW...) for recent events, besides official and scholarly sources. */
   trustedNews: boolean;
+  /** The user's own custom instructions, sent to every model in the chosen areas. */
+  custom: CustomInstructions;
   /** The site owner's answer rules, sent to every model. `text: null` = built-in default. */
   answerRules: { enabled: boolean; text: string | null };
 }
@@ -44,6 +46,18 @@ interface SettingsActions {
   removeCustomProvider: (id: string) => void;
   recordVote: (winner: string, all: string[]) => void;
 }
+
+export type Area = 'chat' | 'compare' | 'team' | 'agent' | 'code';
+export interface CustomInstructions {
+  enabled: boolean;
+  /** What JeeA! should know about the user (role, field, level, place). */
+  about: string;
+  /** How the user wants answers (style, length, format). */
+  style: string;
+  /** Where they apply. */
+  areas: Record<Area, boolean>;
+}
+export const DEFAULT_CUSTOM: CustomInstructions = { enabled: true, about: '', style: '', areas: { chat: true, compare: true, team: true, agent: true, code: true } };
 
 export const DEFAULT_MODEL: ModelRef = { providerId: KEYLESS_ID, model: 'openai' };
 
@@ -64,6 +78,7 @@ const initial: Settings = {
   agentRepo: '',
   webMode: 'on',
   trustedNews: true,
+  custom: DEFAULT_CUSTOM,
   answerRules: { enabled: true, text: null },
 };
 

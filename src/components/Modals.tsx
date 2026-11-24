@@ -1,7 +1,7 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { CheckCircle2, Info, Trophy, X, XCircle } from 'lucide-react';
 import { useUI } from '../lib/ui';
-import { useSettings, type Accent, type Theme, modelKey, allProviders, gatewayInfo } from '../lib/settings';
+import { useSettings, type Accent, type Theme, type Area, modelKey, allProviders, gatewayInfo } from '../lib/settings';
 import type { WebMode } from '../lib/web';
 import { WEB_HELP } from './Web';
 import { DEFAULT_RULES, roughTokens, rulesText } from '../lib/rules';
@@ -11,6 +11,7 @@ import { CHANGELOG, APP_VERSION } from '../lib/changelog';
 import { downloadText } from '../lib/utils';
 import type { Session } from '../lib/types';
 import { ModelPicker, ProviderDot } from './ModelPicker';
+import { ProjectModal } from './Projects';
 import { LogoMark, Wordmark } from './Logo';
 import { REPO_URL } from './Shell';
 
@@ -46,6 +47,7 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
 
   return (
     <Modal title="Settings" onClose={onClose}>
+      <CustomSection />
       <section className="set-section">
         <h3>Appearance</h3>
         <div className="set-row">
@@ -164,6 +166,48 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+const AREAS: [Area, string][] = [['chat', 'Chat'], ['compare', 'Compare'], ['team', 'Team'], ['agent', 'Agent'], ['code', 'CodeFrame']];
+const CUSTOM_MAX = 4000;
+
+/** The user's own custom instructions, for every conversation in the chosen areas. */
+function CustomSection() {
+  const c = useSettings((s) => s.custom);
+  const set = useSettings((s) => s.set);
+  const patch = (p: Partial<typeof c>) => set({ custom: { ...c, ...p } });
+  return (
+    <section className="set-section custom-section" id="custom-instructions">
+      <h3>Custom instructions</h3>
+      <p className="muted sm">Written once, used in every conversation. Projects can add their own instructions on top.</p>
+      <label className="set-row">
+        <span>Use my custom instructions</span>
+        <input type="checkbox" className="switch" checked={c.enabled} onChange={(e) => patch({ enabled: e.target.checked })} aria-label="Use my custom instructions" />
+      </label>
+      <label className="field">
+        <span className="field-label">What should JeeA! know about you? <span className="muted xs">{c.about.length}/{CUSTOM_MAX}</span></span>
+        <textarea rows={4} maxLength={CUSTOM_MAX} value={c.about} placeholder="e.g. I am an electrical engineer in Thimphu, Bhutan. I study for a master's in renewable energy. I use SI units." onChange={(e) => patch({ about: e.target.value })} aria-label="What should JeeA! know about you" />
+      </label>
+      <label className="field">
+        <span className="field-label">How should JeeA! respond? <span className="muted xs">{c.style.length}/{CUSTOM_MAX}</span></span>
+        <textarea rows={4} maxLength={CUSTOM_MAX} value={c.style} placeholder="e.g. Plain English. Start with the answer. Show formulas with a worked example. Keep answers under 400 words unless I ask for more." onChange={(e) => patch({ style: e.target.value })} aria-label="How should JeeA! respond" />
+      </label>
+      <div className="set-row wrap">
+        <span>Apply in</span>
+        <div className="area-checks">
+          {AREAS.map(([id, label]) => (
+            <label key={id} className="area-check">
+              <input type="checkbox" checked={c.areas[id] !== false} onChange={(e) => patch({ areas: { ...c.areas, [id]: e.target.checked } })} />
+              {label}
+            </label>
+          ))}
+        </div>
+      </div>
+      <p className="muted xs">
+        Order when instructions conflict: the answer rules' hard rules first, then the most specific wins (this chat's own instructions, then the project's, then yours). In CodeFrame the code format always wins.
+      </p>
+    </section>
+  );
+}
+
 /** The site owner's answer rules: on/off, edit, reset. */
 function RulesSection() {
   const rules = useSettings((s) => s.answerRules);
@@ -276,6 +320,7 @@ export function Modals() {
       {modal === 'settings' && <SettingsModal onClose={close} />}
       {modal === 'whatsnew' && <WhatsNewModal onClose={close} />}
       {modal === 'leaderboard' && <LeaderboardModal onClose={close} />}
+      <ProjectModal />
       {confirmReq && (
         <div className="modal-scrim" onMouseDown={(e) => e.target === e.currentTarget && closeConfirm(false)}>
           <div className="modal confirm" role="alertdialog" aria-modal="true">

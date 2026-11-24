@@ -907,3 +907,40 @@ label.chip { cursor: pointer; }
 .img-empty { text-align: center; color: var(--muted); padding: 40px 16px; border: 1px dashed var(--border-strong); border-radius: var(--radius); }
 .img-empty svg { color: var(--accent); margin-bottom: 8px; }
 @media (max-width: 520px) { .img-studio { padding: 12px; } .img-row .seg button { padding: 6px 8px; } }
+
+/* Custom instructions and projects (v1.7) */
+.custom-section textarea, .project-modal textarea, .project-modal input:not([type]) , .project-modal input[type='text'] {
+  width: 100%; padding: 10px 12px; border-radius: 10px; font: inherit; font-size: 13.5px; line-height: 1.5; color: var(--text);
+  background: var(--input); border: 1px solid var(--border-strong); resize: vertical;
+}
+.custom-section .field, .project-modal .field { display: flex; flex-direction: column; gap: 6px; margin: 10px 0; }
+.area-checks { display: flex; flex-wrap: wrap; gap: 6px 14px; }
+.area-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.project-bar { display: flex; align-items: center; gap: 4px; margin: 0 0 8px; }
+.project-switch {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 10px; font-size: 13px; font-weight: 600;
+  color: var(--text); background: var(--surface-2); border: 1px solid var(--border);
+}
+.project-switch:hover { border-color: var(--border-strong); }
+.project-switch.in-project { border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--accent); }
+.ps-name { flex: 1; min-width: 0; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.project-menu { display: flex; flex-direction: column; padding: 6px; }
+.pm-head { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); padding: 8px 8px 4px; }
+.pm-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 8px; font-size: 13.5px; color: var(--text); text-align: left; width: 100%; }
+.pm-item:hover { background: var(--surface-2); }
+.pm-item.on { color: var(--accent); }
+.pm-item .pm-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pm-item > span:first-of-type { flex: 1; }
+.pm-new { color: var(--accent); border-top: 1px solid var(--border); margin-top: 4px; border-radius: 0 0 8px 8px; }
+.history-proj { color: var(--accent); margin-right: 5px; vertical-align: -1px; flex-shrink: 0; }
+.project-modal .modal-head h2 { display: flex; align-items: center; gap: 8px; }
+.kb-drop { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; padding: 16px; border: 1px dashed var(--border-strong); border-radius: 12px; color: var(--muted); font-size: 13px; }
+.kb-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.kb-list li { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; background: var(--surface-2); font-size: 13px; }
+.kb-list li svg { color: var(--accent); flex-shrink: 0; }
+.kb-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.project-foot { margin-top: 16px; }
+.composer-hint { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.ctx-badges { display: inline-flex; gap: 5px; flex-wrap: wrap; }
+.ctx-badge { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 999px; font-size: 11px; color: var(--muted); background: var(--surface-2); border: 1px solid var(--border); }
+.ctx-badge:hover { color: var(--text); border-color: var(--border-strong); }

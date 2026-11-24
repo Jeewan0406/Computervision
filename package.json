@@ -1,15 +1,15 @@
 {
   "name": "jeea",
   "private": true,
-  "version": "1.6.0",
-  "description": "JeeA! \u2014 one beautiful chat for many AI models: free models, your own API keys, side-by-side compare, multi-role teams and a live CodeFrame.",
+  "version": "1.7.0",
+  "description": "JeeA! — one beautiful chat for many AI models: free models, your own API keys, side-by-side compare, multi-role teams and a live CodeFrame.",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --no-warnings --test tests/logic.test.ts tests/agent.test.ts tests/models.test.ts tests/web.test.ts tests/news.test.mjs tests/gateway.test.mjs"
+    "test": "node --experimental-strip-types --no-warnings --test tests/logic.test.ts tests/agent.test.ts tests/models.test.ts tests/web.test.ts tests/instructions.test.ts tests/news.test.mjs tests/gateway.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.12.0",
@@ -28,7 +28,9 @@
     "immer": "^11.2.10",
     "katex": "^0.19.1",
     "lucide-react": "^1.77.0",
+    "mammoth": "1.13.0",
     "marked": "^18.2.1",
+    "pdfjs-dist": "6.5.438",
     "pptxgenjs": "4.0.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

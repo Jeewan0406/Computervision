@@ -6,10 +6,12 @@ import { hydrateLogs, log } from './lib/logs';
 import { BUILTIN_PROVIDERS, KEYLESS_ID } from './lib/providers';
 import { setGateway, setLiveModels, useRuntime, useSettings, gatewayInfo } from './lib/settings';
 import { listModels } from './lib/llm';
+import { useProjects } from './lib/projects';
 import './styles.css';
 import 'highlight.js/styles/github-dark.css';
 
 hydrateData();
+void useProjects.getState().load();
 hydrateLogs().then(() => log({ level: 'info', type: 'system', feature: 'system', message: 'JeeA! started.' }));
 
 createRoot(document.getElementById('root')!).render(

@@ -8,6 +8,7 @@ import { useSettings } from '../lib/settings';
 import { useUI } from '../lib/ui';
 import { stopJobs } from '../lib/runner';
 import { streamReply } from '../lib/reply';
+import { personalContext } from '../lib/context';
 import { extractRunnable, liveHtml, splitThink, stripCode } from '../lib/text';
 import { copyText, downloadText, fmtDateTime, titleFrom, uid } from '../lib/utils';
 import type { ChatMsg } from '../lib/llm';
@@ -17,6 +18,7 @@ import { MessageItem } from '../components/Message';
 import { Composer } from '../components/Composer';
 import { useAutoScroll } from '../components/hooks';
 import { Popover } from '../components/Popover';
+import { ContextBadges } from '../components/Projects';
 
 const CodeEditor = lazy(() => import('../components/CodeEditor'));
 
@@ -66,7 +68,13 @@ async function runCodeTurn(sid: string, onLive: (code: string | null) => void) {
   const s = useData.getState().sessions[sid] as CodeSession;
   const history = s.messages.slice();
   const lastUser = history[history.length - 1];
-  const api: ChatMsg[] = [{ role: 'system', content: CODE_SYSTEM }];
+  // The user's custom instructions and the project's instructions and files
+  // apply here too; the code-output format above them always wins.
+  const pc = await personalContext('code', s.projectId, lastUser?.content ?? '');
+  const system = pc.text
+    ? `${CODE_SYSTEM}\n\nAlways keep the output format above, even if the instructions below ask for something else.\n\n${pc.text}`
+    : CODE_SYSTEM;
+  const api: ChatMsg[] = [{ role: 'system', content: system }];
   for (const m of history.slice(0, -1)) {
     if (m.role === 'assistant' && (m.status === 'error' || !m.content)) continue;
     api.push({ role: m.role as 'user' | 'assistant', content: m.role === 'assistant' ? stripCode(splitThink(m.content).answer, '[earlier code omitted]') : m.content });
@@ -321,7 +329,7 @@ export function CodeView() {
               </div>
             )}
           </div>
-          <Composer onSend={send} busy={busy} onStop={() => session && stopJobs(session.id)} placeholder={session?.code ? 'Ask for a change…' : 'Describe the app you want…'} left={<ModelPicker value={model} onChange={(r) => (session ? update(session.id, (x) => void ((x as CodeSession).model = r), false) : setDraftModel(r))} size="sm" />} />
+          <Composer context={<ContextBadges area="code" projectId={session ? session.projectId ?? null : undefined} />} onSend={send} busy={busy} onStop={() => session && stopJobs(session.id)} placeholder={session?.code ? 'Ask for a change…' : 'Describe the app you want…'} left={<ModelPicker value={model} onChange={(r) => (session ? update(session.id, (x) => void ((x as CodeSession).model = r), false) : setDraftModel(r))} size="sm" />} />
         </div>
         {workspace}
       </div>

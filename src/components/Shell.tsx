@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  Activity, Bot, Code2, Columns3, ImagePlus, KeyRound, Menu, MessageSquare, Moon, Pencil, Pin, PinOff, Plus, Search,
+  Activity, Bot, Code2, Columns3, Folder, ImagePlus, KeyRound, Menu, MessageSquare, Moon, Pencil, Pin, PinOff, Plus, Search,
   Settings as SettingsIcon, SlidersHorizontal, Sparkles, Sun, Monitor, Trash2, Users, X,
 } from 'lucide-react';
 import type { GenParams, SessionKind, View } from '../lib/types';
@@ -8,6 +8,8 @@ import { useUI } from '../lib/ui';
 import { useData, sessionsOf } from '../lib/data';
 import { useSettings, isUsable, allProviders } from '../lib/settings';
 import { useLogs } from '../lib/logs';
+import { useProjects } from '../lib/projects';
+import { MoveToProject, ProjectBar } from './Projects';
 import { dayBucket } from '../lib/utils';
 import { stopJobs } from '../lib/runner';
 import { LogoMark, Wordmark, GithubIcon } from './Logo';
@@ -45,15 +47,17 @@ export function Sidebar() {
   const theme = useSettings((s) => s.theme);
   const setSettings = useSettings((s) => s.set);
   const errors = useLogs((s) => s.entries.filter((e) => e.level === 'error' && Date.now() - e.ts < 86_400_000).length);
+  const projectId = useProjects((s) => s.activeId);
+  const projects = useProjects((s) => s.projects);
   const [q, setQ] = useState('');
   const [renaming, setRenaming] = useState<string | null>(null);
 
   const kind: SessionKind = view === 'compare' || view === 'team' || view === 'code' || view === 'agent' ? view : 'chat';
   const list = useMemo(() => {
-    const all = sessionsOf(kind, sessions);
+    const all = sessionsOf(kind, sessions).filter((s) => !projectId || s.projectId === projectId);
     const ql = q.trim().toLowerCase();
     return ql ? all.filter((s) => s.title.toLowerCase().includes(ql)) : all;
-  }, [kind, sessions, q]);
+  }, [kind, sessions, q, projectId]);
 
   const groups = useMemo(() => {
     const g = new Map<string, typeof list>();
@@ -106,6 +110,7 @@ export function Sidebar() {
 
         {view !== 'keys' && view !== 'logs' && view !== 'images' && (
           <div className="history">
+            <ProjectBar />
             <div className="history-search">
               <Search size={14} />
               <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={`Search ${KIND_LABEL[kind]}s`} />
@@ -132,7 +137,8 @@ export function Sidebar() {
                           }}
                         />
                       ) : (
-                        <button className="history-title" onClick={() => { setActive(kind, s.id); setNav(false); }} title={s.title}>
+                        <button className="history-title" onClick={() => { setActive(kind, s.id); setNav(false); }} title={s.projectId && !projectId ? `${s.title} · project: ${projects.find((p) => p.id === s.projectId)?.name ?? ''}` : s.title}>
+                          {s.projectId && !projectId && <Folder size={12} className="history-proj" />}
                           {s.title}
                         </button>
                       )}
@@ -141,6 +147,7 @@ export function Sidebar() {
                           {s.pinned ? <PinOff size={13} /> : <Pin size={13} />}
                         </button>
                         <button className="icon-btn xs" title="Rename" onClick={() => setRenaming(s.id)}><Pencil size={13} /></button>
+                        <MoveToProject sessionId={s.id} />
                         <button
                           className="icon-btn xs"
                           title="Delete"

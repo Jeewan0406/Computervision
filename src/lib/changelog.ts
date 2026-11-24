@@ -1,5 +1,5 @@
 /** In-app release log ("What's new"). Mirrors CHANGELOG.md. */
-export const APP_VERSION = '1.6.0';
+export const APP_VERSION = '1.7.0';
 
 export interface Release {
   version: string;
@@ -9,6 +9,17 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
+  {
+    version: '1.7.0',
+    date: '2026-11-24',
+    title: 'Custom instructions and projects',
+    items: [
+      { tag: 'new', feature: 'Custom instructions', text: 'Tell JeeA! once about yourself and how you want answers (Settings → Custom instructions). They apply to every conversation in Chat, Compare, Team, Agent and CodeFrame; each area can be switched off.' },
+      { tag: 'new', feature: 'Projects', text: 'Group related conversations in a project with its own instructions and files (text, code, PDF with page numbers, Word). Every chat in the project uses them; chats do not see each other. Switch projects at the top of the conversation list, and move any conversation into a project.' },
+      { tag: 'new', feature: 'Large files', text: 'When a project\'s files are bigger than the space chosen for them, each question gets only the passages most related to it, labelled with file name and page, so models can cite them.' },
+      { tag: 'improved', feature: 'Clear order', text: 'Models are told which instruction wins: the answer rules\' hard rules first, then the most specific (this chat, then the project, then your custom instructions). Badges under the chat box show which ones are active.' },
+    ],
+  },
   {
     version: '1.6.0',
     date: '2026-11-24',

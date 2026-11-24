@@ -8,6 +8,7 @@ import { stopJobs } from '../lib/runner';
 import { streamReply } from '../lib/reply';
 import { prepareWeb, joinSystem, type WebResult } from '../lib/webrun';
 import { rulesText } from '../lib/rules';
+import { personalContext } from '../lib/context';
 import { splitThink } from '../lib/text';
 import { fmtMs, titleFrom, uid } from '../lib/utils';
 import { TopBar, ParamsButton } from '../components/Shell';
@@ -18,6 +19,7 @@ import { toApiMessages } from './ChatView';
 import { SourcesBar, WebToggle } from '../components/Web';
 import { ExportMenu, titleOf } from '../components/Export';
 import { linkCitations } from '../lib/web';
+import { ContextBadges } from '../components/Projects';
 
 const MAX_LANES = 6;
 
@@ -70,7 +72,7 @@ export function CompareView() {
   };
 
   /** Stream one lane's answer into its waiting placeholder message. */
-  const runLane = (sid: string, laneId: string, asstId: string, w: WebResult) => {
+  const runLane = (sid: string, laneId: string, asstId: string, w: WebResult, personal = '') => {
     const s = useData.getState().sessions[sid] as CompareSession;
     const lane = s.lanes.find((l) => l.id === laneId)!;
     const history = lane.messages.filter((m) => m.id !== asstId);
@@ -79,7 +81,7 @@ export function CompareView() {
       jobId: `${sid}:${laneId}:${asstId}`,
       locate: (x) => (x as CompareSession).lanes.find((l) => l.id === laneId)?.messages.find((m) => m.id === asstId),
       ref: lane.model,
-      messages: toApiMessages(joinSystem(rulesText(), s.system, w.prompt), history),
+      messages: toApiMessages(joinSystem(rulesText(), personal, s.system, w.prompt), history),
       params: s.params,
       feature: 'compare',
     });
@@ -119,7 +121,8 @@ export function CompareView() {
       if (w.aborted) m.status = 'stopped';
     });
     if (w.aborted) return;
-    await Promise.all([...ids].map(([laneId, asstId]) => runLane(sid, laneId, asstId, w)));
+    const pc = await personalContext('compare', s0.projectId, text);
+    await Promise.all([...ids].map(([laneId, asstId]) => runLane(sid, laneId, asstId, w, pc.text)));
   };
 
   const send = (text: string) => {
@@ -286,7 +289,7 @@ export function CompareView() {
         </div>
       )}
 
-      <Composer onSend={send} busy={busy} onStop={() => session && stopJobs(session.id)} placeholder="Ask all models the same thing…" left={<WebToggle />} />
+      <Composer context={<ContextBadges area="compare" projectId={session ? session.projectId ?? null : undefined} />} onSend={send} busy={busy} onStop={() => session && stopJobs(session.id)} placeholder="Ask all models the same thing…" left={<WebToggle />} />
     </div>
   );
 }

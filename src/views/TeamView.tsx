@@ -6,8 +6,9 @@ import { usableModelRefs } from '../lib/settings';
 import { useUI } from '../lib/ui';
 import { stopJobs } from '../lib/runner';
 import { streamReply } from '../lib/reply';
-import { prepareWeb } from '../lib/webrun';
+import { prepareWeb, joinSystem } from '../lib/webrun';
 import { rulesText } from '../lib/rules';
+import { personalContext } from '../lib/context';
 import { linkCitations } from '../lib/web';
 import { MODE_INFO, TEAM_PRESETS, newStep, planTeam, presetRoles } from '../lib/team';
 import { splitThink } from '../lib/text';
@@ -19,6 +20,7 @@ import { Composer } from '../components/Composer';
 import { SourcesBar, WebToggle } from '../components/Web';
 import { ExportMenu, titleOf } from '../components/Export';
 import { useAutoScroll } from '../components/hooks';
+import { ContextBadges } from '../components/Projects';
 
 const COLORS = ['#8b5cf6', '#06b6d4', '#f59e0b', '#10b981', '#ec4899', '#3b82f6', '#ef4444'];
 const EMOJIS = ['🤖', '🧠', '🦉', '🧭', '💻', '🔍', '✍️', '⚖️', '💡', '🧪'];
@@ -54,7 +56,8 @@ async function executeRun(sid: string, runId: string, input: string) {
   }, false);
   if (w.aborted) return;
   const s = useData.getState().sessions[sid] as TeamSession;
-  const waves = planTeam(s, input, w.prompt, rulesText());
+  const pc = await personalContext('team', s.projectId, input);
+  const waves = planTeam(s, input, w.prompt, joinSystem(rulesText(), pc.text));
   const done: { step: TeamStep; content: string }[] = [];
   let failed = false;
 
@@ -336,7 +339,7 @@ export function TeamView() {
         </div>
       </div>
 
-      <Composer onSend={send} busy={busy} onStop={() => session && stopJobs(session.id)} placeholder="Give your team a task…" left={<WebToggle />} />
+      <Composer context={<ContextBadges area="team" projectId={session ? session.projectId ?? null : undefined} />} onSend={send} busy={busy} onStop={() => session && stopJobs(session.id)} placeholder="Give your team a task…" left={<WebToggle />} />
     </div>
   );
 }

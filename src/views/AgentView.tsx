@@ -19,6 +19,7 @@ import { Composer } from '../components/Composer';
 import { Popover } from '../components/Popover';
 import { useAutoScroll } from '../components/hooks';
 import { ScheduledAgents } from './ScheduledAgents';
+import { ContextBadges } from '../components/Projects';
 
 const EXAMPLES = [
   { title: 'Research with sources', prompt: 'Using Wikipedia, compare Mount Everest and K2: height, first ascent, and death rate. Give a short table and cite the pages you used.' },
@@ -259,7 +260,7 @@ export function AgentView() {
               ))}
             </div>
           )}
-          <Composer
+          <Composer context={<ContextBadges area="agent" projectId={session ? session.projectId ?? null : undefined} />}
             onSend={send}
             busy={busy}
             onStop={() => session && stopJobs(session.id)}

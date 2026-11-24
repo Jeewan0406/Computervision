@@ -2,6 +2,17 @@
 
 All notable changes to JeeA! are listed here. The same notes appear in the app under **What's new** (✨).
 
+## 1.7.0 — 2026-11-24 — Custom instructions and projects
+
+### New
+- **Custom instructions** — Settings → Custom instructions: *What should JeeA! know about you?* and *How should JeeA! respond?* (up to 4,000 characters each), sent to every conversation in Chat, Compare, Team, Agent and CodeFrame, with a switch per area.
+- **Projects** — conversations grouped with shared instructions and files. A project switcher sits at the top of the conversation list; new conversations join the selected project; any conversation can be moved in or out. The description is private and never sent. Files: text, code, PDF (pdf.js, with page numbers) and Word (mammoth), read in the browser and kept in IndexedDB.
+- **Passages for large files** — when files exceed the chosen space (Small, Medium, Large), only the passages most related to the question are sent, labelled with file and page.
+
+### Improved
+- Every request states which instruction wins: answer rules' hard rules first, then this conversation, the project, and the custom instructions. Badges under the chat box show the active layers.
+- The PDF reader's worker is saved as .js so every static host serves it as JavaScript.
+
 ## 1.6.0 — 2026-11-24 — Trusted sources, APA 7th, documents and images
 
 ### New

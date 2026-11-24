@@ -122,6 +122,8 @@ export interface ChatSession {
   createdAt: number;
   updatedAt: number;
   pinned?: boolean;
+  /** Project this conversation belongs to (projects.ts). */
+  projectId?: string;
   model: ModelRef;
   system: string;
   params: GenParams;
@@ -141,6 +143,8 @@ export interface CompareSession {
   createdAt: number;
   updatedAt: number;
   pinned?: boolean;
+  /** Project this conversation belongs to (projects.ts). */
+  projectId?: string;
   system: string;
   params: GenParams;
   lanes: CompareLane[];
@@ -189,6 +193,8 @@ export interface TeamSession {
   createdAt: number;
   updatedAt: number;
   pinned?: boolean;
+  /** Project this conversation belongs to (projects.ts). */
+  projectId?: string;
   mode: TeamMode;
   rounds: number;
   roles: TeamRole[];
@@ -209,6 +215,8 @@ export interface CodeSession {
   createdAt: number;
   updatedAt: number;
   pinned?: boolean;
+  /** Project this conversation belongs to (projects.ts). */
+  projectId?: string;
   model: ModelRef;
   messages: Message[];
   code: string;
@@ -238,6 +246,8 @@ export interface AgentSession {
   createdAt: number;
   updatedAt: number;
   pinned?: boolean;
+  /** Project this conversation belongs to (projects.ts). */
+  projectId?: string;
   model: ModelRef;
   messages: Message[];
   tools: string[];

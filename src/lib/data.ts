@@ -37,6 +37,10 @@ interface DataActions {
 
 const DB_KEY = 'jeea.data.v1';
 
+/** Project new conversations belong to (set by projects.ts, kept here to avoid an import cycle). */
+let projectSource: () => string | undefined = () => undefined;
+export const setProjectSource = (fn: () => string | undefined) => void (projectSource = fn);
+
 export const useData = create<DataState & DataActions>()(
   immer((set) => ({
     hydrated: false,
@@ -91,6 +95,8 @@ export const useData = create<DataState & DataActions>()(
             ...(init as Partial<CodeSession>),
           };
       }
+      const projectId = (init as { projectId?: string } | undefined)?.projectId ?? projectSource();
+      if (projectId) s.projectId = projectId;
       set((st) => {
         st.sessions[id] = s;
         st.active[kind] = id;

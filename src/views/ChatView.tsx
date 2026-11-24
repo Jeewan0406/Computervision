@@ -8,6 +8,7 @@ import { stopJobs } from '../lib/runner';
 import { streamReply } from '../lib/reply';
 import { prepareWeb, joinSystem } from '../lib/webrun';
 import { rulesText } from '../lib/rules';
+import { personalContext } from '../lib/context';
 import { splitThink } from '../lib/text';
 import { titleFrom, uid } from '../lib/utils';
 import { withApa } from '../lib/apa';
@@ -21,6 +22,7 @@ import { WebToggle } from '../components/Web';
 import { ExportMenu } from '../components/Export';
 import { LogoMark, Wordmark } from '../components/Logo';
 import { useAutoScroll } from '../components/hooks';
+import { ContextBadges } from '../components/Projects';
 
 /** All sources of a chat, once each, numbered again with fresh APA letters. */
 function dedupeSources(list: WebSource[]): WebSource[] {
@@ -73,12 +75,13 @@ async function ask(sessionId: string) {
     if (w.aborted) m.status = 'stopped';
   });
   if (w.aborted) return;
+  const pc = await personalContext('chat', s.projectId, users[users.length - 1]?.content ?? '');
   await streamReply({
     sessionId,
     jobId: `${sessionId}:${asstId}`,
     locate: (x) => (x as ChatSession).messages.find((m) => m.id === asstId),
     ref: s.model,
-    messages: toApiMessages(joinSystem(rulesText(), s.system, w.prompt), history),
+    messages: toApiMessages(joinSystem(rulesText(), pc.text, s.system, w.prompt), history),
     params: s.params,
     feature: 'chat',
   });
@@ -225,7 +228,7 @@ export function ChatView() {
         )}
       </div>
 
-      <Composer
+      <Composer context={<ContextBadges area="chat" projectId={session ? session.projectId ?? null : undefined} />}
         onSend={send}
         busy={busy}
         onStop={() => session && stopJobs(session.id)}

@@ -11,6 +11,7 @@ import { splitThink } from './text';
 import { isAbort, uid } from './utils';
 import { prepareWeb, joinSystem } from './webrun';
 import { rulesText } from './rules';
+import { personalContext } from './context';
 import { tooLongHint } from './reply';
 
 /**
@@ -73,7 +74,8 @@ export async function runAgent(sid: string, asstId: string) {
   });
   if (w.aborted) return;
   const base = `${AGENT_SYSTEM}\nToday is ${new Date().toDateString()}.${toolNames.includes('ask_model') ? `\nModels you can ask with ask_model: ${delegateIds().join(', ')}.` : ''}`;
-  const system = joinSystem(base, rulesText(), w.prompt);
+  const pc = await personalContext('agent', s0.projectId, users[users.length - 1]?.content ?? '');
+  const system = joinSystem(base, rulesText(), pc.text, w.prompt);
 
   let mode: Mode = provider.kind === 'anthropic' ? 'anthropic' : provider.kind === 'puter' || provider.nativeTools === false ? 'text' : 'openai';
   if (!tools.length) mode = provider.kind === 'anthropic' ? 'anthropic' : 'text';

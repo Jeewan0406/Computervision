@@ -24,6 +24,8 @@ Chat with many AI models in one beautiful app. Start free with no key, add your 
 | 🌐 **Trusted sources for every question** | Before every question in Chat, Compare, Team and Agent, JeeA! searches **trusted sources only**: recent research (OpenAlex), news and releases from the UN, governments and space agencies, new papers from leading journals, established news organisations (collected every hour by this site's GitHub job), and web search limited to trusted sites if the site owner adds a key. No Wikipedia, blogs or social media. Each source comes with a ready **APA 7th** citation. The 🌐 button switches between **On** (default), **Auto** and **Off**. |
 | 📄 **Export** | Save any answer, or a whole chat, as a **Word** document, **PDF**, **Excel** workbook (tables, text, sources), **PowerPoint** slides, Markdown, or an image (PNG, JPG, SVG). |
 | 🖼️ **Images** | Make pictures from a description: free with a Puter account, free for visitors through the JeeA Gateway (FLUX on Cloudflare), or with your own OpenAI key. Download as PNG, JPG or WebP. |
+| ✎ **Custom instructions** | Tell JeeA! once about yourself and how you want answers. They go to every conversation in Chat, Compare, Team, Agent and CodeFrame; each area can be switched off. |
+| 📁 **Projects** | Keep related conversations together with shared instructions and files (text, code, PDF with page numbers, Word). Large files are searched, and only the passages related to each question are sent, with file and page. |
 | 📜 **Answer rules** | The site owner's answer rules (plain English, checked and cited sources, honesty, Checks lines, evidence judging) go to every model as system text, with a short note on how they work inside JeeA!. Edit, reset or switch them off in **Settings → Answer rules**. |
 | ➗ **Maths** | LaTeX formulas, boxed results and coloured citations display properly (KaTeX, loaded only when a message needs it). |
 | 🤖 **Agent** | Give a goal. The agent searches trusted sources first, then plans and uses tools step by step: web pages, exact maths, a JavaScript sandbox, date and time, long-term memory, workspace files, creating web apps, and asking other models. Every step is shown and can be opened. |
@@ -40,6 +42,10 @@ Chat with many AI models in one beautiful app. Start free with no key, add your 
 <tr>
 <td><img src="docs/screenshots/rules.jpg" alt="An answer following the answer rules: coloured author-year citations, a boxed formula and research sources" /></td>
 <td><img src="docs/screenshots/sources.jpg" alt="Trusted sources: UN News and BBC News chips with APA 7th citations" /></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/project.jpg" alt="Project editor: name, private description, instructions and files" /></td>
+<td><img src="docs/screenshots/custom-instructions.jpg" alt="Custom instructions in Settings, with areas" /></td>
 </tr>
 <tr>
 <td><img src="docs/screenshots/export.jpg" alt="Export menu: Word, PDF, Excel, PowerPoint, Markdown and images" /></td>
@@ -133,6 +139,20 @@ The **Images** page makes pictures from a description, in five shapes (1:1, 16:9
 - **Your OpenAI key**: GPT Image 2, GPT Image 1.5 and GPT Image 1 mini, charged to your OpenAI account.
 
 The last 40 images are kept in your browser and can be downloaded as PNG, JPG or WebP. For diagrams and charts, ask in Chat for SVG or HTML and open it in CodeFrame.
+
+## Custom instructions and projects
+
+JeeA! follows the model Anthropic documents for Claude: account-wide instructions "will be applied to all of your conversations", project instructions "only apply to chats within that project", project files are "used across all of your chats within that project", and chats in a project do not see each other unless the information is in the project's files.
+
+**Custom instructions** (Settings → Custom instructions): two boxes, *What should JeeA! know about you?* and *How should JeeA! respond?* (up to 4,000 characters each). They apply in Chat, Compare, Team, Agent and CodeFrame; each area can be switched off.
+
+**Projects** (top of the conversation list): create a project, give it instructions and files, and every new conversation made while it is selected joins it. Any conversation can be moved in or out with the folder button. A project has:
+- a **name**, and a **description** that is only for you and is never sent to a model;
+- **instructions** for every conversation in it (up to 8,000 characters);
+- **files**: text and code files, PDF (with page numbers; scanned PDFs without a text layer cannot be read) and Word .docx, read in your browser and kept only there;
+- a **space for files** per request: Small ≈3k, Medium ≈8k or Large ≈20k tokens. Files that fit are sent whole. Larger files are split into passages, and only the passages most related to the question are sent, labelled with file name and page (`src/lib/instructions.ts`, BM25 ranking).
+
+**Which instruction wins.** Every request says so: the answer rules' hard rules (sections 0 to 8) first; then the most specific instruction wins: this conversation's own instructions, then the project's, then your custom instructions. These may change the rules' preferences (sections 9 to 12). In CodeFrame, the code-output format always wins. Badges under the chat box show which layers are active.
 
 ## The answer rules
 
@@ -234,6 +254,10 @@ src/
     apa.ts          APA 7th in-text citations and references
     exporter.ts     Word, PDF, Excel, PowerPoint, Markdown and image export
     images.ts       image generation (Puter, gateway, OpenAI) and the gallery
+    instructions.ts custom-instruction and project text, priority note, file passages (BM25)
+    projects.ts     projects store (IndexedDB) and their files
+    extract.ts      text from PDF (pdf.js), Word (mammoth) and text files
+    context.ts      builds the personal part of every request
     math.ts         KaTeX maths, loaded on demand
   rules/          the site owner's answer rules and the JeeA! note (Markdown)
     llm.ts          streaming clients: OpenAI-compatible + Anthropic SDK

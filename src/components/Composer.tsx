@@ -18,6 +18,7 @@ export function Composer({
   placeholder = 'Message JeeA!…',
   left,
   hint,
+  context,
   autoFocus = true,
 }: {
   onSend: (text: string) => void;
@@ -26,6 +27,8 @@ export function Composer({
   placeholder?: string;
   left?: ReactNode;
   hint?: ReactNode;
+  /** Small badges before the hint (project, custom instructions, rules). */
+  context?: ReactNode;
   autoFocus?: boolean;
 }) {
   const [text, setText] = useState('');
@@ -135,7 +138,8 @@ export function Composer({
         </div>
       </div>
       <div className="composer-hint">
-        {hint ?? (sendOnEnter ? 'Enter to send · Shift + Enter for a new line' : 'Ctrl/⌘ + Enter to send')}
+        {context}
+        <span>{hint ?? (sendOnEnter ? 'Enter to send · Shift + Enter for a new line' : 'Ctrl/⌘ + Enter to send')}</span>
       </div>
     </div>
   );

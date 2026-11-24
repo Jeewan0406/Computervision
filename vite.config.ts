@@ -11,5 +11,12 @@ export default defineConfig({
     target: 'es2022',
     sourcemap: false,
     chunkSizeWarningLimit: 900,
+    rollupOptions: {
+      output: {
+        // pdf.js's worker ships as .mjs; save it as .js so every static host
+        // (GitHub Pages included) serves it as JavaScript.
+        assetFileNames: (info) => (info.names?.[0] ?? '').endsWith('.mjs') ? 'assets/[name]-[hash].js' : 'assets/[name]-[hash][extname]',
+      },
+    },
   },
 });
