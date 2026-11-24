@@ -13,6 +13,7 @@ import { TopBar } from '../components/Shell';
 import { ModelPicker, ModelBadge } from '../components/ModelPicker';
 import { Markdown, Reasoning, TypingDots, MessageItem } from '../components/Message';
 import { SourcesBar } from '../components/Web';
+import { ExportMenu, titleOf } from '../components/Export';
 import { linkCitations } from '../lib/web';
 import { Composer } from '../components/Composer';
 import { Popover } from '../components/Popover';
@@ -109,6 +110,7 @@ function AgentRun({ m, files }: { m: Message; files: Record<string, string> }) {
             <span>{toolCount} tool{toolCount === 1 ? '' : 's'}</span>
             <span>{m.meta.estimated ? '≈' : ''}{fmtNum(m.meta.tokensIn)} in · {m.meta.estimated ? '≈' : ''}{fmtNum(m.meta.tokensOut)} out</span>
             {m.meta.slotLabel && <span className="metric-key">🔑 {m.meta.slotLabel}</span>}
+            {m.content.trim() && <ExportMenu title={titleOf(m.content)} getMarkdown={() => m.content} sources={m.sources} getNode={(b) => b?.closest<HTMLElement>('.msg-body, .agent-run') ?? null} />}
           </div>
         )}
       </div>

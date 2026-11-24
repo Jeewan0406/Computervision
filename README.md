@@ -21,10 +21,12 @@ Chat with many AI models in one beautiful app. Start free with no key, add your 
 | Feature | What it does |
 |---|---|
 | 💬 **Chat** | A standard chat with the model picker inside the chat box and friendly model names ("Llama 3.3 70B", "Gemini 2.5 Flash"): streaming answers, Markdown, tables, code highlighting, the model's reasoning (when it shares it), edit and resend, regenerate, history with search, pin and rename, export to Markdown. |
-| 🌐 **Web for every question** | Before every question in Chat, Compare, Team and Agent, JeeA! searches the web (recent research abstracts, Wikipedia, news lists, and full web search if the site owner adds a key) and gives the results and today's date to the model. Answers show **Sources** chips. The 🌐 button in the chat box switches between **On** (default), **Auto** (only when fresh facts seem needed) and **Off**. |
+| 🌐 **Trusted sources for every question** | Before every question in Chat, Compare, Team and Agent, JeeA! searches **trusted sources only**: recent research (OpenAlex), news and releases from the UN, governments and space agencies, new papers from leading journals, established news organisations (collected every hour by this site's GitHub job), and web search limited to trusted sites if the site owner adds a key. No Wikipedia, blogs or social media. Each source comes with a ready **APA 7th** citation. The 🌐 button switches between **On** (default), **Auto** and **Off**. |
+| 📄 **Export** | Save any answer, or a whole chat, as a **Word** document, **PDF**, **Excel** workbook (tables, text, sources), **PowerPoint** slides, Markdown, or an image (PNG, JPG, SVG). |
+| 🖼️ **Images** | Make pictures from a description: free with a Puter account, free for visitors through the JeeA Gateway (FLUX on Cloudflare), or with your own OpenAI key. Download as PNG, JPG or WebP. |
 | 📜 **Answer rules** | The site owner's answer rules (plain English, checked and cited sources, honesty, Checks lines, evidence judging) go to every model as system text, with a short note on how they work inside JeeA!. Edit, reset or switch them off in **Settings → Answer rules**. |
 | ➗ **Maths** | LaTeX formulas, boxed results and coloured citations display properly (KaTeX, loaded only when a message needs it). |
-| 🤖 **Agent** | Give a goal. The agent plans and uses tools step by step: Wikipedia search and reading, web pages, exact maths, a JavaScript sandbox, date and time, long-term memory, workspace files, creating web apps, and asking other models. Every step is shown and can be opened. |
+| 🤖 **Agent** | Give a goal. The agent searches trusted sources first, then plans and uses tools step by step: web pages, exact maths, a JavaScript sandbox, date and time, long-term memory, workspace files, creating web apps, and asking other models. Every step is shown and can be opened. |
 | ⏰ **24/7 agents** | Scheduled agents run on GitHub Actions in your repository, even when your computer is off, and save Markdown reports that the Agent page shows. |
 | 🆓 **Free models** | Works the moment the page opens: the shared Pollinations model needs no sign-up and no key. **Puter** adds hundreds of models (GPT, Claude, Gemini, Llama…) with a free Puter account. With the optional **JeeA Gateway**, the site owner can share free NVIDIA and other models with every visitor. Free models carry a green **Free** tag. |
 | 🔑 **API Slots** | Add as many keys as you like for 19 providers, or your own endpoint. Several keys for one provider are rotated, and a key that hits a rate limit is rested while the next one takes over. |
@@ -37,7 +39,11 @@ Chat with many AI models in one beautiful app. Start free with no key, add your 
 <table>
 <tr>
 <td><img src="docs/screenshots/rules.jpg" alt="An answer following the answer rules: coloured author-year citations, a boxed formula and research sources" /></td>
-<td><img src="docs/screenshots/web-compare.jpg" alt="Compare: one web search shared by every model" /></td>
+<td><img src="docs/screenshots/sources.jpg" alt="Trusted sources: UN News and BBC News chips with APA 7th citations" /></td>
+</tr>
+<tr>
+<td><img src="docs/screenshots/export.jpg" alt="Export menu: Word, PDF, Excel, PowerPoint, Markdown and images" /></td>
+<td><img src="docs/screenshots/images.jpg" alt="Images page: describe a picture, choose a model and shape" /></td>
 </tr>
 <tr>
 <td><img src="docs/screenshots/picker.jpg" alt="Model picker inside the chat box with Free tags" /></td>
@@ -84,28 +90,55 @@ No AI provider offers truly unlimited free use, and an API key placed in a publi
 2. Open the Worker, choose **Edit code**, replace everything with the contents of `proxy/jeea-gateway.js`, and **Deploy**.
 3. Open **Settings → Variables and Secrets → Add**. Add `NVIDIA_API_KEY` with type **Secret** (your key from build.nvidia.com). Optionally add `GROQ_API_KEY`, `GEMINI_API_KEY`, `CEREBRAS_API_KEY`, `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` as secrets, and `ALLOWED_ORIGINS` (type Text) = `https://<your-user>.github.io`. **Deploy**.
 4. *(Free, no extra key)* In the Worker's **Settings**, look for **Bindings** and add a **Workers AI** binding named `AI` (the dashboard wording may differ slightly; with Wrangler it is `"ai": { "binding": "AI" }` in the config file). This adds Cloudflare Workers AI models (Llama 3.3 70B, Llama 4 Scout, Mistral Small 3.1, QwQ 32B, DeepSeek R1 Distill, Qwen 2.5 Coder, GPT-OSS 120B), which use Cloudflare's free allowance of 10,000 Neurons per day ([Cloudflare pricing docs](https://github.com/cloudflare/cloudflare-docs/blob/production/src/content/docs/workers-ai/platform/pricing.mdx)).
-5. *(Optional, full web search)* Add the secret `TAVILY_API_KEY` (a key from tavily.com). JeeA!'s web search then also uses full web search through `POST /v1/search`, cached for 10 minutes and limited to 6 searches per visitor per minute (`SEARCH_PER_MINUTE`). Without it, the app still searches Wikipedia on its own.
+5. *(Optional, full web search)* Add the secret `TAVILY_API_KEY` (a key from tavily.com). JeeA!'s search then also uses web search through `POST /v1/search`, **limited to trusted sites** (the `TRUSTED_DOMAINS` list in the Worker, plus government, university and intergovernmental addresses), cached for 10 minutes and limited to 6 searches per visitor per minute (`SEARCH_PER_MINUTE`). Without it, the app still searches OpenAlex and the trusted-news index. With the Workers AI binding from step 4, visitors can also make images (FLUX.1 [schnell], `IMAGE_PER_MINUTE`, default 3).
 6. Copy the Worker address (`https://jeea-gateway.<name>.workers.dev`) into `public/jeea.config.json` → `"gateway"`, and commit. After the site redeploys, every visitor sees **JeeA Free+** in the model picker.
 
 The visitors share your free limits, so for many users add more providers' keys or keep the per-minute limit low.
 
-## How the web search works
+## How the search works (trusted sources only)
 
-1. **Decide.** With **On** (the default), every question is searched; only bare greetings such as "hi" or "thanks" are skipped. With **Auto**, a small set of rules (`src/lib/web.ts`) searches only when the answer may have changed since the model was trained (words such as *latest, today, price, won, released, current, news*, a year, or a short factual question about a named person or place). **Off** never searches.
+1. **Decide.** With **On** (the default), every question is searched; only bare greetings such as "hi" or "thanks" are skipped. With **Auto**, a small set of rules (`src/lib/web.ts`) searches only when the answer may have changed since the model was trained. **Off** never searches.
 2. **Search.** The question becomes search words (*"Who is the current prime minister of Bhutan?"* → *prime minister Bhutan*). In parallel, JeeA! asks:
-   - **OpenAlex**, a free index of research papers: up to 3 works with abstracts from the last 2 years (5 if fewer than 2 are found), never retracted ones;
-   - **Wikipedia** article summaries, and for news questions its *In the news* and last two days of *Current events*;
-   - the gateway's **full web search**, if the site owner set a Tavily key.
-   OpenAlex and Wikipedia need no key and allow browser calls. The search stops after 9 seconds and a failed source is skipped.
-3. **Answer.** The model gets today's date, your time zone and up to 8 numbered results. Each result says what it is (scholarly work, web page or Wikipedia), its authors, date, journal, DOI and which part was shown (for example, *Abstract*). With the answer rules on, the model cites in the rules' format; with them off, it cites as [1], [2]. Compare runs one search for all models; Team gives the same results to every role; Agent gets them before its first step.
+   - **OpenAlex**, a free index of research papers: up to 4 works with abstracts from the last 2 years (5 if fewer than 2 are found), never retracted ones;
+   - the **trusted-news index** (`news-data/latest.json`): every hour, the *Trusted News* GitHub job (`.github/workflows/news.yml`, `agents/news.mjs`) reads the feeds in `agents/feeds.json` and keeps recent dated items: news 4 days, official releases 14 days, journal papers 30 days. Questions that name a day ("news on 24 Nov 2026", "today", "yesterday") get that day's items. At most 2 items come from one organisation, so answers use several sources;
+   - the gateway's **web search limited to trusted sites**, if the site owner set a Tavily key.
+   Wikipedia, blogs, forums and social media are never used, and are filtered out of every result list. The search stops after 9 seconds and a failed source is skipped.
+3. **Answer.** The model gets today's date, your time zone and up to 8 numbered results. Each result says what it is (scholarly work, official publication, news organisation report, trusted web page), its authors or organisation, date, journal, DOI, which part was shown, and a ready **APA 7th in-text citation and reference** (`src/lib/apa.ts`; same author and year get a, b, c in title order). The model is told to copy those, to use two or more sources per key claim when they exist, and, for lists of events, to include only events found in the results, with their dates.
 
-**Limits.** Models only see the short text JeeA! found (an abstract or an extract), not full papers, so they cannot quote deeper sections. Without the gateway search key there is no general web search, so very recent or local news may be missing. Your search words are sent to OpenAlex and Wikipedia (and to the gateway, if used).
+**Sources in the news index** (checked from GitHub's servers on 24 November 2026; 27 of 39 candidates worked):
+- *Intergovernmental and government:* UN News, ReliefWeb (UN OCHA), WHO, IAEA, ESA, NASA, CDC, GOV.UK, European Commission, Press Information Bureau (India).
+- *Journals:* Nature, Science, The Lancet, NEJM, The BMJ, PNAS, PLOS ONE, Cell.
+- *News organisations:* BBC News, NPR, Deutsche Welle, Al Jazeera, France 24, The Guardian, CBC News, Bhutan Broadcasting Service.
+
+UNICEF, UNHCR, UNEP, WMO, IMF, World Bank, FAO, WFP, UNFCCC, OECD, ADB and Kuensel were left out because their feeds refused GitHub's servers or no longer exist. WHO's feed had nothing newer than 10 October 2026, and IAEA and PIB give no dates, so they rarely add items. Add or remove sources in `agents/feeds.json`. **Settings → Web search** can leave out news organisations, so only official and scholarly sources are used.
+
+**Limits.** Models see only the short text JeeA! found (an abstract, a feed summary or an extract), not full papers. Without the gateway search key there is no general web search, so questions outside research and recent news may get few trusted results; the model is then told to say so. Your search words are sent to OpenAlex (and to the gateway, if used); the news index is a public file on GitHub.
+
+## Export: Word, PDF, Excel, PowerPoint and images
+
+Every answer (and the whole chat, from the top bar) has an **Export** button:
+- **Word (.docx):** headings, lists, tables, links and code; coloured citations stay coloured. Formulas are kept as LaTeX text.
+- **PDF:** opens the browser's print window with a clean page; choose *Save as PDF*. Text stays selectable and formulas stay sharp.
+- **Excel (.xlsx):** one sheet per table (numbers stay numbers), a sheet with the answer text, and a sheet with the sources and their APA 7th references.
+- **PowerPoint (.pptx):** a title slide in the Druk colours, one slide per section (long sections continue on extra slides) and one per table.
+- **Markdown**, and **images** of the answer (PNG, JPG, SVG).
+
+When an answer has no reference list, the exported file adds "Sources found by JeeA! (APA 7th)". The export libraries load only when you export.
+
+## Images
+
+The **Images** page makes pictures from a description, in five shapes (1:1, 16:9, 9:16, 4:3, 3:4):
+- **Puter** (free with a Puter account; usage counts against your own Puter allowance): GPT Image 2, Gemini 3.1 Flash Image, FLUX schnell and Grok Imagine.
+- **JeeA Gateway** (free for visitors when the site owner adds the Workers AI binding): FLUX.1 [schnell].
+- **Your OpenAI key**: GPT Image 2, GPT Image 1.5 and GPT Image 1 mini, charged to your OpenAI account.
+
+The last 40 images are kept in your browser and can be downloaded as PNG, JPG or WebP. For diagrams and charts, ask in Chat for SVG or HTML and open it in CodeFrame.
 
 ## The answer rules
 
 The site owner's rules live in `src/rules/answer-rules.md`, word for word, and a short note in `src/rules/jeea-context.md` tells the models how to apply them inside JeeA!:
 - the only sources they have opened are the numbered web results;
-- Wikipedia results never count as evidence;
+- only trusted source types are given (no Wikipedia, blogs or social media), each with a ready APA 7th citation;
 - for research papers they saw only the abstract;
 - JeeA! shows Markdown and maths but no widgets.
 
@@ -194,9 +227,13 @@ src/
   lib/            core logic
     providers.ts    provider catalog (3 no-key providers, 19 with keys)
     models.ts       friendly model names and Free detection
-    web.ts          web search: when to search, OpenAlex/Wikipedia/gateway search, prompt
+    web.ts          search: when to search, OpenAlex and gateway search, trusted-site filter, prompt
     webrun.ts       runs the search for Chat, Compare, Team and Agent (stoppable, logged)
     rules.ts        the answer rules sent to every model
+    news.ts         searches the hourly trusted-news index
+    apa.ts          APA 7th in-text citations and references
+    exporter.ts     Word, PDF, Excel, PowerPoint, Markdown and image export
+    images.ts       image generation (Puter, gateway, OpenAI) and the gallery
     math.ts         KaTeX maths, loaded on demand
   rules/          the site owner's answer rules and the JeeA! note (Markdown)
     llm.ts          streaming clients: OpenAI-compatible + Anthropic SDK
@@ -209,7 +246,7 @@ src/
     logs.ts         activity log (IndexedDB)
     markdown.ts     safe Markdown + code highlighting
   views/          Chat, Agent, Compare, Team, CodeFrame, API Slots, Logs
-agents/           24/7 runner (run.mjs), its helpers and tasks.json
+agents/           24/7 runner (run.mjs), tasks.json, and the trusted-news collector (news.mjs, newslib.mjs, feeds.json)
   components/     model picker, messages, composer, sidebar, dialogs, editor
 public/           logo, icons, manifest, service worker
 proxy/            Cloudflare Workers: CORS proxy (cloudflare-worker.js) and JeeA Gateway (jeea-gateway.js)

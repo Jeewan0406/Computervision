@@ -17,6 +17,7 @@ import { ModelPicker, ModelBadge } from '../components/ModelPicker';
 import { Markdown, Metrics, Reasoning, TypingDots } from '../components/Message';
 import { Composer } from '../components/Composer';
 import { SourcesBar, WebToggle } from '../components/Web';
+import { ExportMenu, titleOf } from '../components/Export';
 import { useAutoScroll } from '../components/hooks';
 
 const COLORS = ['#8b5cf6', '#06b6d4', '#f59e0b', '#10b981', '#ec4899', '#3b82f6', '#ef4444'];
@@ -154,7 +155,12 @@ function StepCard({ step, final, sources }: { step: TeamStep; final: boolean; so
             {split.answer ? <Markdown text={linkCitations(split.answer, sources)} /> : m.status === 'streaming' ? <TypingDots /> : null}
             {m.status === 'error' && <div className="msg-error"><span>{m.error}</span></div>}
             {m.status === 'stopped' && <div className="muted xs">Stopped.</div>}
-            {m.status === 'done' && <Metrics m={m} />}
+            {m.status === 'done' && (
+              <div className="row gap-8 between">
+                <Metrics m={m} />
+                <ExportMenu title={titleOf(split.answer, step.roleName)} getMarkdown={() => split.answer} sources={sources} getNode={(b) => b?.closest<HTMLElement>('.step-card') ?? null} />
+              </div>
+            )}
           </>
         )}
       </div>

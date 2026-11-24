@@ -29,6 +29,8 @@ export interface Settings {
   agentRepo: string;
   /** Web search: 'on' every question (default), 'auto' decides per message, 'off' never. */
   webMode: WebMode;
+  /** Use established news organisations (BBC, NPR, DW...) for recent events, besides official and scholarly sources. */
+  trustedNews: boolean;
   /** The site owner's answer rules, sent to every model. `text: null` = built-in default. */
   answerRules: { enabled: boolean; text: string | null };
 }
@@ -61,6 +63,7 @@ const initial: Settings = {
   seenVersion: '',
   agentRepo: '',
   webMode: 'on',
+  trustedNews: true,
   answerRules: { enabled: true, text: null },
 };
 

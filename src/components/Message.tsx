@@ -10,6 +10,7 @@ import { useUI } from '../lib/ui';
 import { ModelBadge } from './ModelPicker';
 import { MATH_HINT, loadMath, useMath } from '../lib/math';
 import { SourcesBar } from './Web';
+import { ExportMenu, titleOf } from './Export';
 import { linkCitations } from '../lib/web';
 
 /** Markdown with working "Copy / Download / Run" buttons on code blocks. */
@@ -175,6 +176,9 @@ export const MessageItem = memo(function MessageItem({
               <button className="icon-btn xs" title="Copy answer" onClick={async () => setCopied(await copyText(text))}>
                 {copied ? <Check size={13} /> : <Copy size={13} />}
               </button>
+              {text.trim() && m.status === 'done' && (
+                <ExportMenu title={titleOf(text)} getMarkdown={() => text} sources={m.sources} getNode={(b) => b?.closest<HTMLElement>('.msg-body') ?? null} />
+              )}
               {runnable && (
                 <button className="icon-btn xs" title="Run this answer in CodeFrame" onClick={() => openInCodeFrame(runnable, 'html')}>
                   <Play size={13} />

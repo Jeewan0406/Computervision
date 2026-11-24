@@ -2,6 +2,19 @@
 
 All notable changes to JeeA! are listed here. The same notes appear in the app under **What's new** (✨).
 
+## 1.6.0 — 2026-11-24 — Trusted sources, APA 7th, documents and images
+
+### New
+- **Trusted-news index** — a *Trusted News* GitHub Actions job (`.github/workflows/news.yml`, hourly) reads feeds from intergovernmental bodies, governments, leading journals and established news organisations (`agents/feeds.json`) and publishes `latest.json` to the `news-data` branch, which is replaced on every run. In its first runs, 27 of 39 candidate sources worked; the 12 that refused or no longer exist were removed.
+- **APA 7th citations** — every source gets a ready in-text citation and reference (`src/lib/apa.ts`), with a, b, c letters for the same author and year in title order. Models copy them.
+- **Export** — Word (.docx), PDF (print), Excel (.xlsx), PowerPoint (.pptx), Markdown and images (PNG, JPG, SVG) for any answer or a whole chat. Libraries load only when used.
+- **Images page** — image generation with Puter (free with an account), the JeeA Gateway (FLUX.1 [schnell] on Workers AI, new `/v1/images/generations` endpoint) or your own OpenAI key; PNG, JPG and WebP downloads; a local gallery.
+
+### Improved
+- **Sources** — Wikipedia removed; blogs, forums and social media filtered out everywhere; the gateway's search is limited to trusted sites. A setting can leave out news organisations.
+- **Answer quality** — the app note tells models to use two or more sources per key claim, and to list only events found in the results, with dates, never inventing times, places or numbers.
+- **Agent** — the Wikipedia tools are off by default (still available in the Tools list).
+
 ## 1.5.0 — 2026-11-24 — Your answer rules, and the web for every question
 
 ### New

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bot, Code2, Columns3, Download, KeyRound, Users } from 'lucide-react';
+import { Bot, Code2, Columns3, KeyRound, Users } from 'lucide-react';
 import type { ChatSession, Message, ModelRef } from '../lib/types';
 import { useData } from '../lib/data';
 import { useSettings, getProvider, isUsable, modelLabel } from '../lib/settings';
@@ -9,15 +9,25 @@ import { streamReply } from '../lib/reply';
 import { prepareWeb, joinSystem } from '../lib/webrun';
 import { rulesText } from '../lib/rules';
 import { splitThink } from '../lib/text';
-import { downloadText, titleFrom, uid } from '../lib/utils';
+import { titleFrom, uid } from '../lib/utils';
+import { withApa } from '../lib/apa';
+import type { WebSource } from '../lib/web';
 import type { ChatMsg } from '../lib/llm';
 import { TopBar, ParamsButton } from '../components/Shell';
 import { ModelPicker } from '../components/ModelPicker';
 import { MessageItem } from '../components/Message';
 import { Composer } from '../components/Composer';
 import { WebToggle } from '../components/Web';
+import { ExportMenu } from '../components/Export';
 import { LogoMark, Wordmark } from '../components/Logo';
 import { useAutoScroll } from '../components/hooks';
+
+/** All sources of a chat, once each, numbered again with fresh APA letters. */
+function dedupeSources(list: WebSource[]): WebSource[] {
+  const seen = new Set<string>();
+  const out = list.filter((s) => (seen.has(s.url) ? false : (seen.add(s.url), true))).map((s, i) => ({ ...s, n: i + 1 }));
+  return out.length ? withApa(out) : [];
+}
 
 export function toApiMessages(system: string, history: Message[]): ChatMsg[] {
   const out: ChatMsg[] = [];
@@ -155,11 +165,12 @@ export function ChatView() {
     void ask(session.id);
   };
 
-  const exportMd = () => {
-    if (!session) return;
-    const md = [`# ${session.title}`, '', ...session.messages.map((m) => `**${m.role === 'user' ? 'You' : `${m.model?.model ?? 'AI'}`}:**\n\n${m.content}\n${m.sources?.length ? `\nSources:\n${m.sources.map((x) => `${x.n}. [${x.title}](${x.url})${x.date ? ` (${x.date})` : ''}`).join('\n')}\n` : ''}`)].join('\n');
-    downloadText(`${session.title.replace(/[^\w-]+/g, '_').slice(0, 40) || 'chat'}.md`, md, 'text/markdown');
-  };
+  /** The whole conversation as Markdown (for Export). */
+  const chatMarkdown = () =>
+    (session?.messages ?? [])
+      .filter((m) => m.role !== 'system' && m.content.trim())
+      .map((m) => `### ${m.role === 'user' ? 'You' : modelLabel(m.model ?? model)}\n\n${m.role === 'assistant' ? splitThink(m.content).answer : m.content}\n`)
+      .join('\n');
 
   return (
     <div className="view chat-view">
@@ -167,7 +178,12 @@ export function ChatView() {
         right={
           <>
             {session && session.messages.length > 0 && (
-              <button className="icon-btn" title="Export as Markdown" onClick={exportMd}><Download size={17} /></button>
+              <ExportMenu
+                title={session.title}
+                getMarkdown={chatMarkdown}
+                sources={dedupeSources(session.messages.flatMap((m) => m.sources ?? []))}
+                getNode={() => document.querySelector<HTMLElement>('.chat-view .thread')}
+              />
             )}
             <ParamsButton
               system={session?.system ?? draftSystem}

@@ -171,7 +171,7 @@ export const AGENT_TOOLS: AgentTool[] = [
         firstErr = 'the site does not allow reading from other web pages (CORS)';
       }
       if (!res && proxy) res = await fetch(`${proxy}${url}`, { signal: ctx.signal });
-      if (!res) return `Could not read ${url}: ${firstErr}. Set up the CORS proxy (API Slots → Routing) or use search_wikipedia.`;
+      if (!res) return `Could not read ${url}: ${firstErr}. Set up the CORS proxy (API Slots → Routing), or rely on the trusted web results JeeA! gave you.`;
       if (!res.ok) return `Could not read ${url}: HTTP ${res.status}.`;
       const type = res.headers.get('content-type') ?? '';
       const body = await res.text();

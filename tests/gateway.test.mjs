@@ -1,7 +1,7 @@
 // Tests for proxy/jeea-gateway.js with the upstream providers mocked. Run: npm test
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import worker from '../proxy/jeea-gateway.js';
+import worker, { trustedUrl } from '../proxy/jeea-gateway.js';
 
 const seen = [];
 globalThis.fetch = async (url, init = {}) => {
@@ -14,7 +14,7 @@ globalThis.fetch = async (url, init = {}) => {
     return new Response(JSON.stringify({ data: [{ id: 'meta-llama/llama-3.3-70b-instruct:free' }, { id: 'openai/gpt-5' }] }));
   }
   if (u === 'https://api.tavily.com/search') {
-    return new Response(JSON.stringify({ results: [{ title: 'Bhutan news', url: 'https://example.org/bt', content: 'Fresh text', published_date: '2026-11-21', score: 0.9 }, { url: 'https://bad.example' }] }));
+    return new Response(JSON.stringify({ results: [{ title: 'Bhutan news', url: 'https://www.bbs.bt/news/1', content: 'Fresh text', published_date: '2026-11-21', score: 0.9 }, { title: 'Blog', url: 'https://someone.blogspot.com/x', content: 'x' }, { url: 'https://bad.example' }] }));
   }
   if (u.endsWith('/chat/completions')) {
     return new Response('data: {"choices":[{"delta":{"content":"Hi"}}]}\n\ndata: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } });
@@ -121,12 +121,30 @@ test('web search: 501 without a key; with a key calls Tavily with the secret and
   assert.equal(r.headers.get('Access-Control-Allow-Origin'), SITE);
   const text = await r.text();
   assert.ok(!text.includes('tvly-secret'));
-  assert.deepEqual(JSON.parse(text).results, [{ title: 'Bhutan news', url: 'https://example.org/bt', content: 'Fresh text', published_date: '2026-11-21' }]);
+  assert.deepEqual(JSON.parse(text).results, [{ title: 'Bhutan news', url: 'https://www.bbs.bt/news/1', content: 'Fresh text', published_date: '2026-11-21' }], 'only trusted sites');
   const call = seen.find((c) => c.url === 'https://api.tavily.com/search');
   assert.equal(call.auth, 'Bearer tvly-secret');
   assert.equal(call.body.query, 'Bhutan election');
   assert.equal(call.body.max_results, 8);
   assert.equal(call.body.topic, 'news');
+  assert.ok(call.body.include_domains.includes('un.org') && call.body.include_domains.includes('nature.com'));
   // Other websites are refused here too.
   assert.equal((await worker.fetch(req('/v1/search', { method: 'POST', body }, 'https://evil.example'), env2)).status, 403);
+});
+
+test('trusted sites: governments, universities, UN bodies, journals; not blogs or Wikipedia', () => {
+  for (const u of ['https://www.who.int/x', 'https://data.gov.bt/x', 'https://www.ox.ac.uk/x', 'https://www.nature.com/articles/1', 'https://www.cdc.gov/x', 'https://news.un.org/en/1']) assert.equal(trustedUrl(u), true, u);
+  for (const u of ['https://en.wikipedia.org/wiki/x', 'https://me.medium.com/x', 'https://example.com/x', 'not a url']) assert.equal(trustedUrl(u), false, u);
+});
+
+test('images: FLUX on Workers AI returns OpenAI-style b64_json; 501 without the binding', async () => {
+  const body = JSON.stringify({ prompt: 'a yak in the snow', steps: 50 });
+  const none = await worker.fetch(req('/v1/images/generations', { method: 'POST', body }, SITE, '6.6.6.1'), env);
+  assert.equal(none.status, 501);
+  const runs = [];
+  const env2 = { ...env, AI: { run: async (model, input) => { runs.push({ model, input }); return { image: 'aGVsbG8=' }; } } };
+  const r = await worker.fetch(req('/v1/images/generations', { method: 'POST', body }, SITE, '6.6.6.2'), env2);
+  assert.equal(r.status, 200);
+  assert.deepEqual((await r.json()).data, [{ b64_json: 'aGVsbG8=' }]);
+  assert.deepEqual(runs, [{ model: '@cf/black-forest-labs/flux-1-schnell', input: { prompt: 'a yak in the snow', steps: 8 } }]);
 });

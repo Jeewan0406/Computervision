@@ -15,6 +15,7 @@ const TeamView = lazy(() => import('./views/TeamView').then((m) => ({ default: m
 const CodeView = lazy(() => import('./views/CodeView').then((m) => ({ default: m.CodeView })));
 const KeysView = lazy(() => import('./views/KeysView').then((m) => ({ default: m.KeysView })));
 const LogsView = lazy(() => import('./views/LogsView').then((m) => ({ default: m.LogsView })));
+const ImagesView = lazy(() => import('./views/ImagesView').then((m) => ({ default: m.ImagesView })));
 
 function useTheme() {
   const theme = useSettings((s) => s.theme);
@@ -69,6 +70,7 @@ export default function App() {
             {view === 'code' && <CodeView />}
             {view === 'keys' && <KeysView />}
             {view === 'logs' && <LogsView />}
+            {view === 'images' && <ImagesView />}
           </Suspense>
         )}
       </main>

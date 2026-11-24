@@ -3,6 +3,9 @@
 import type { View } from './types';
 import { dateLine, searchQuery, webDecision, webPrompt, webSearch, type WebSource } from './web';
 import { gatewayInfo, useSettings } from './settings';
+import { withApa } from './apa';
+import { loadNewsIndex, searchNews } from './news';
+import { newsIndexUrl } from './repo';
 import { endJob, startJob } from './runner';
 import { log } from './logs';
 import { isAbort } from './utils';
@@ -40,12 +43,16 @@ export async function prepareWeb(
   const t0 = performance.now();
   try {
     const gw = gatewayInfo();
-    const { sources, errors } = await webSearch({
+    const allowNews = useSettings.getState().trustedNews !== false;
+    const found = await webSearch({
       query,
       news: d.news,
       gateway: gw ? gw.baseUrl.replace(/\/v1$/, '') : null,
       signal: ctrl.signal,
+      trusted: async (signal) => searchNews(await loadNewsIndex(newsIndexUrl(), undefined, signal), query, { text, allowNews, max: d.news ? 6 : 3 }),
     });
+    const errors = found.errors;
+    const sources = withApa(found.sources);
     const ms = Math.round(performance.now() - t0);
     log({
       level: sources.length ? 'info' : 'warn',

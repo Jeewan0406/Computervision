@@ -4,9 +4,9 @@
  * agents in agents/lib.mjs.
  */
 
+/** Wikipedia tools stay available in the Tools list but are off by default:
+ * the site owner's rules do not accept Wikipedia as a source. */
 export const DEFAULT_AGENT_TOOLS = [
-  'search_wikipedia',
-  'read_wikipedia',
   'fetch_url',
   'calculate',
   'run_javascript',

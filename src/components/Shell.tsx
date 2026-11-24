@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import {
-  Activity, Bot, Code2, Columns3, KeyRound, Menu, MessageSquare, Moon, Pencil, Pin, PinOff, Plus, Search,
+  Activity, Bot, Code2, Columns3, ImagePlus, KeyRound, Menu, MessageSquare, Moon, Pencil, Pin, PinOff, Plus, Search,
   Settings as SettingsIcon, SlidersHorizontal, Sparkles, Sun, Monitor, Trash2, Users, X,
 } from 'lucide-react';
 import type { GenParams, SessionKind, View } from '../lib/types';
@@ -21,6 +21,7 @@ const NAV: { view: View; label: string; icon: typeof MessageSquare; hint: string
   { view: 'compare', label: 'Compare', icon: Columns3, hint: 'Many models, one prompt' },
   { view: 'team', label: 'Team', icon: Users, hint: 'Different models, different roles' },
   { view: 'code', label: 'CodeFrame', icon: Code2, hint: 'Build and run apps live' },
+  { view: 'images', label: 'Images', icon: ImagePlus, hint: 'Make pictures from a description' },
   { view: 'keys', label: 'API Slots', icon: KeyRound, hint: 'Your keys and providers' },
   { view: 'logs', label: 'Logs', icon: Activity, hint: 'Every request, measured' },
 ];
@@ -67,7 +68,7 @@ export function Sidebar() {
   const providersReady = allProviders().filter((p) => p.access !== 'keyless' && isUsable(p, slots)).length;
 
   const newSession = () => {
-    if (view === 'keys' || view === 'logs') setView('chat');
+    if (view === 'keys' || view === 'logs' || view === 'images') setView('chat');
     create(kind);
     setNav(false);
   };
@@ -103,7 +104,7 @@ export function Sidebar() {
           ))}
         </nav>
 
-        {view !== 'keys' && view !== 'logs' && (
+        {view !== 'keys' && view !== 'logs' && view !== 'images' && (
           <div className="history">
             <div className="history-search">
               <Search size={14} />
@@ -160,7 +161,7 @@ export function Sidebar() {
             </div>
           </div>
         )}
-        {(view === 'keys' || view === 'logs') && <div className="flex-1" />}
+        {(view === 'keys' || view === 'logs' || view === 'images') && <div className="flex-1" />}
 
         <div className="sidebar-foot">
           <button className="status-pill" onClick={() => setView('keys')} title="Open API Slots">

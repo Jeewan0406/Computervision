@@ -7,6 +7,7 @@ import { BUILTIN_PROVIDERS, KEYLESS_ID } from '../lib/providers';
 import { copyText, fmtMs } from '../lib/utils';
 import { Markdown } from '../components/Message';
 import { REPO_URL } from '../components/Shell';
+import { detectRepo } from '../lib/repo';
 
 /**
  * 24/7 agents run on GitHub Actions (see .github/workflows/agents.yml and
@@ -64,12 +65,7 @@ const SERVER_TOOLS = [
 
 const EVERY = ['30m', '1h', '3h', '6h', '12h', '1d', '7d'];
 
-export function detectRepo(): string | null {
-  const m = location.hostname.match(/^([a-z0-9-]+)\.github\.io$/i);
-  if (!m) return null;
-  const seg = location.pathname.split('/').filter(Boolean)[0];
-  return seg ? `${m[1]}/${seg}` : `${m[1]}/${m[1]}.github.io`;
-}
+export { detectRepo };
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'my-task';
 

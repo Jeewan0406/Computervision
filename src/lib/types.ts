@@ -249,7 +249,7 @@ export interface AgentSession {
 export type Session = ChatSession | CompareSession | TeamSession | CodeSession | AgentSession;
 export type SessionKind = Session['kind'];
 
-export type View = 'chat' | 'agent' | 'compare' | 'team' | 'code' | 'keys' | 'logs';
+export type View = 'chat' | 'agent' | 'compare' | 'team' | 'code' | 'images' | 'keys' | 'logs';
 
 export type LogLevel = 'info' | 'warn' | 'error';
 

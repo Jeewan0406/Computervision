@@ -36,7 +36,8 @@ const chipText = (s: WebSource) => {
     const more = (s.authors?.length ?? 0) > 1 ? ' et al.' : '';
     return `📄 ${first}${more} ${s.date?.slice(0, 4) ?? ''} · ${short}`;
   }
-  return s.site === 'Wikipedia' ? `Wikipedia · ${short}` : `${s.site} · ${short}`;
+  const icon = s.kind === 'official' ? '🏛 ' : s.kind === 'news' ? '📰 ' : '';
+  return `${icon}${s.site} · ${short}`;
 };
 
 /** "Sources" chips under an answer, or a short note when the search found nothing. */
@@ -52,7 +53,7 @@ export function SourcesBar({ sources, web }: { sources?: WebSource[]; web?: { qu
             href={s.url}
             target="_blank"
             rel="noreferrer"
-            title={`${s.title}${s.date ? ` (${s.date})` : ''}\n${s.snippet.slice(0, 220)}`}
+            title={`${s.apaRef ?? s.title}\n\n${s.snippet.slice(0, 220)}`}
           >
             <span className="source-n">{s.n}</span>
             <span className="source-text">{chipText(s)}</span>

@@ -1,15 +1,15 @@
 {
   "name": "jeea",
   "private": true,
-  "version": "1.5.0",
-  "description": "JeeA! — one beautiful chat for many AI models: free models, your own API keys, side-by-side compare, multi-role teams and a live CodeFrame.",
+  "version": "1.6.0",
+  "description": "JeeA! \u2014 one beautiful chat for many AI models: free models, your own API keys, side-by-side compare, multi-role teams and a live CodeFrame.",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --no-warnings --test tests/logic.test.ts tests/agent.test.ts tests/models.test.ts tests/web.test.ts tests/gateway.test.mjs"
+    "test": "node --experimental-strip-types --no-warnings --test tests/logic.test.ts tests/agent.test.ts tests/models.test.ts tests/web.test.ts tests/news.test.mjs tests/gateway.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.12.0",
@@ -19,13 +19,17 @@
     "@codemirror/view": "^6.43.15",
     "@heyputer/puter.js": "^2.6.5",
     "codemirror": "^6.0.2",
+    "docx": "9.15.3",
     "dompurify": "^3.4.18",
+    "fflate": "0.8.3",
     "highlight.js": "^11.12.0",
+    "html-to-image": "1.11.13",
     "idb-keyval": "^6.3.0",
     "immer": "^11.2.10",
     "katex": "^0.19.1",
     "lucide-react": "^1.77.0",
     "marked": "^18.2.1",
+    "pptxgenjs": "4.0.1",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zustand": "^5.1.0"
@@ -38,6 +42,7 @@
     "vite": "^8.3.8"
   },
   "overrides": {
-    "postal-mime": "^4.0.8"
+    "postal-mime": "^4.0.8",
+    "image-size": "2.0.4"
   }
 }

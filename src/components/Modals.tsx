@@ -91,10 +91,14 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
         <p className="muted sm">{WEB_HELP[s.webMode].split('. Click')[0]}.</p>
+        <label className="set-row">
+          <span>Use established news organisations for recent events <span className="muted xs">(BBC, NPR, DW, Al Jazeera, France 24, The Guardian, CBC, BBS)</span></span>
+          <input type="checkbox" className="switch" checked={s.trustedNews} onChange={(e) => s.set({ trustedNews: e.target.checked })} />
+        </label>
         <p className="muted sm">
-          Sources: recent scholarly works with abstracts (OpenAlex, last 2 years, widened to 5), Wikipedia articles, and Wikipedia's "In the news" and "Current events" for news questions (free, no key).
-          {gatewayInfo() ? ' This site\'s gateway can also add full web search, if its owner set a search key.' : ' A site owner can add full web search (Tavily) through the JeeA Gateway.'}
-          {' '}Answers show numbered sources you can open. Your question words are sent to these services.
+          Trusted sources only, never Wikipedia, blogs or social media: recent research with abstracts (OpenAlex, last 2 years, widened to 5); news and releases from the UN, governments, NASA, ESA and the European Commission, and new papers from Nature, Science, The Lancet, NEJM, BMJ, PNAS, PLOS ONE and Cell (collected every hour by this site's GitHub job).
+          {gatewayInfo() ? ' This site\'s gateway can also add web search limited to trusted sites, if its owner set a search key.' : ' A site owner can add web search limited to trusted sites (Tavily) through the JeeA Gateway.'}
+          {' '}Each source comes with an APA 7th citation. Your question words are sent to OpenAlex (and the gateway, if used).
         </p>
       </section>
       <RulesSection />

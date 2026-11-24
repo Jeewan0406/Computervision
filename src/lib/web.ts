@@ -3,18 +3,20 @@
 // Pure logic plus network calls with an injectable fetch, so it can be unit
 // tested in Node. No runtime imports on purpose (Node test runner).
 //
-// Sources, in the order they are shown:
-//  1. Wikipedia "In the news" and "Current events", for news-like questions.
-//  2. The site owner's JeeA Gateway `/v1/search` (Tavily web search with the
-//     owner's key), when the site has a gateway and the owner set a key.
+// Sources (trusted types only; no Wikipedia, blogs or social media):
+//  1. The trusted-news index (news-data/latest.json, written hourly by
+//     .github/workflows/news.yml): UN and other intergovernmental bodies,
+//     governments, peer-reviewed journals and established news organisations.
+//     Passed in as `trusted`, so this file has no runtime imports.
+//  2. The site owner's JeeA Gateway `/v1/search` (Tavily, limited to trusted
+//     domains), when the site has a gateway and the owner set a key.
 //  3. OpenAlex: recent scholarly works with abstracts (no key; the API sends
 //     Access-Control-Allow-Origin: *), last 2 years, widened to 5 if too few.
-//  4. Wikipedia article intros (Action API, `origin=*` = anonymous CORS).
 
 export type WebMode = 'auto' | 'on' | 'off';
 
-/** What a result is, so the model can judge it ("Wikipedia does not count"). */
-export type SourceKind = 'scholarly' | 'web' | 'wikipedia' | 'wiki-news';
+/** What a result is, so the model can judge it. */
+export type SourceKind = 'scholarly' | 'official' | 'news' | 'web';
 
 export interface WebSource {
   n: number;
@@ -33,11 +35,16 @@ export interface WebSource {
   doi?: string;
   /** e.g. "article", "review", "preprint", "book-chapter". */
   workType?: string;
+  /** Organisation (group author) for official and news items. */
+  org?: string;
+  /** Ready-made APA 7th citation (filled in by apa.ts withApa). */
+  apaInText?: string;
+  apaRef?: string;
 }
 
 export interface WebDecision {
   search: boolean;
-  /** News-like: also read Wikipedia's "In the news" and "Current events". */
+  /** News-like: put the trusted-news index first. */
   news: boolean;
   reason: string;
 }
@@ -135,121 +142,12 @@ export function searchQuery(raw: string, previous?: string): string {
 // 3. Fetching
 // ---------------------------------------------------------------------------
 
-const WIKI_API = (lang = 'en') => `https://${/^[a-z-]{2,12}$/.test(lang) ? lang : 'en'}.wikipedia.org/w/api.php`;
-const WIKI_PAGE = (title: string, lang = 'en') => `https://${lang}.wikipedia.org/wiki/${encodeURIComponent(title.replace(/ /g, '_'))}`;
-
-/** Plain text from a small HTML fragment. */
-export function stripHtml(html: string): string {
-  return html
-    .replace(/<(script|style|sup)[\s\S]*?<\/\1>/gi, '')
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;|&#160;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;|&apos;/g, "'")
-    .replace(/&#8211;|&ndash;/g, '–')
-    .replace(/&#8212;|&mdash;/g, '—')
-    .replace(/[ \t]+/g, ' ')
-    .trim();
-}
-
-/** List items (<li>) of a Wikipedia page's HTML as plain text. */
-export function listItems(html: string): string[] {
-  const out: string[] = [];
-  const re = /<li\b[^>]*>([\s\S]*?)<\/li>/gi;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(html))) {
-    // Nested lists repeat text; keep only the item's own first line.
-    const own = m[1].split(/<ul\b/i)[0];
-    const t = stripHtml(own).replace(/\s+/g, ' ').trim();
-    if (t.length >= 25 && !/^(Ongoing|Recent deaths|Nominate an article|More…|Archive)\b/i.test(t)) out.push(t);
-  }
-  return out;
-}
-
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n).replace(/\s+\S*$/, '')}…` : s);
 
 async function getJson(fetchFn: FetchFn, url: string, signal: AbortSignal, init?: RequestInit): Promise<unknown> {
   const res = await fetchFn(url, { ...init, signal });
   if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { status: res.status });
   return res.json();
-}
-
-/** Wikipedia article intros for a keyword query (one request). */
-export async function wikipediaSearch(q: string, fetchFn: FetchFn, signal: AbortSignal, limit = 3, lang = 'en'): Promise<WebSource[]> {
-  const url =
-    `${WIKI_API(lang)}?action=query&format=json&formatversion=2&origin=*&redirects=1` +
-    `&generator=search&gsrlimit=${limit}&gsrsearch=${encodeURIComponent(q)}` +
-    `&prop=extracts|info&inprop=url&exintro=1&explaintext=1&exchars=1200&exlimit=${limit}`;
-  const data = (await getJson(fetchFn, url, signal)) as {
-    query?: { pages?: { title: string; extract?: string; fullurl?: string; touched?: string; index?: number; missing?: boolean }[] | Record<string, { title: string; extract?: string; fullurl?: string; touched?: string; index?: number }> };
-  };
-  const pages = data.query?.pages ? (Array.isArray(data.query.pages) ? data.query.pages : Object.values(data.query.pages)) : [];
-  return pages
-    .filter((p) => p.extract && p.extract.trim().length > 40)
-    .sort((a, b) => (a.index ?? 99) - (b.index ?? 99))
-    .map((p) => ({
-      n: 0,
-      title: p.title,
-      url: p.fullurl || WIKI_PAGE(p.title, lang),
-      snippet: clip(p.extract!.replace(/\s+/g, ' ').trim(), 900),
-      site: 'Wikipedia',
-      date: p.touched?.slice(0, 10),
-      kind: 'wikipedia' as const,
-      part: 'Introduction (summary at the top of the article)',
-    }));
-}
-
-const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
-/** Title of Wikipedia's daily "Current events" page for a UTC date. */
-export function currentEventsTitle(d: Date): string {
-  return `Portal:Current events/${d.getUTCFullYear()} ${MONTHS[d.getUTCMonth()]} ${d.getUTCDate()}`;
-}
-
-async function wikiParse(page: string, fetchFn: FetchFn, signal: AbortSignal): Promise<string> {
-  const url = `${WIKI_API()}?action=parse&format=json&formatversion=2&origin=*&prop=text&redirects=1&page=${encodeURIComponent(page)}`;
-  const data = (await getJson(fetchFn, url, signal)) as { parse?: { text?: string | { '*': string } } };
-  const t = data.parse?.text;
-  return typeof t === 'string' ? t : t?.['*'] ?? '';
-}
-
-/** Today's headlines from Wikipedia ("In the news" + the last two days of "Current events"). */
-export async function wikipediaNews(q: string, fetchFn: FetchFn, signal: AbortSignal, now = new Date()): Promise<WebSource[]> {
-  const yesterday = new Date(now.getTime() - 86_400_000);
-  const pages = [
-    { title: 'Template:In the news', date: now },
-    { title: currentEventsTitle(now), date: now },
-    { title: currentEventsTitle(yesterday), date: yesterday },
-  ];
-  const got = await Promise.allSettled(pages.map((p) => wikiParse(p.title, fetchFn, signal)));
-  const terms = q.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
-  const out: WebSource[] = [];
-  got.forEach((r, i) => {
-    if (r.status !== 'fulfilled' || !r.value) return;
-    let items = listItems(r.value);
-    if (terms.length) {
-      const hits = items.filter((t) => terms.some((w) => t.toLowerCase().includes(w)));
-      // A general "latest news" question has no topic words left: keep the top items.
-      items = hits.length ? hits : terms.length <= 1 ? items : [];
-    }
-    if (!items.length) return;
-    const p = pages[i];
-    out.push({
-      n: 0,
-      title: p.title === 'Template:In the news' ? 'Wikipedia: In the news' : `Wikipedia: Current events, ${p.title.split('/')[1]}`,
-      url: WIKI_PAGE(p.title === 'Template:In the news' ? 'Main Page' : p.title),
-      snippet: clip(items.slice(0, 6).map((t) => `• ${t}`).join('\n'), 1100),
-      site: 'Wikipedia',
-      date: p.date.toISOString().slice(0, 10),
-      kind: 'wiki-news',
-      part: 'News list items',
-    });
-  });
-  return out;
 }
 
 /** Web results through the site owner's gateway (Tavily). Null = not available. */
@@ -261,7 +159,7 @@ export async function gatewaySearch(gateway: string, q: string, news: boolean, f
       body: JSON.stringify({ query: q, max_results: 5, topic: news ? 'news' : 'general' }),
     })) as { results?: { title?: string; url?: string; content?: string; published_date?: string }[] };
     return (data.results ?? [])
-      .filter((r) => r.url && r.content)
+      .filter((r) => r.url && r.content && isTrustedUrl(r.url))
       .map((r) => ({
         n: 0,
         title: r.title || hostOf(r.url!),
@@ -275,6 +173,16 @@ export async function gatewaySearch(gateway: string, q: string, news: boolean, f
   } catch (e) {
     if ((e as { status?: number }).status && [404, 405, 501].includes((e as { status: number }).status)) return null;
     throw e;
+  }
+}
+
+/** Sites never used as sources: encyclopedias anyone can edit, blogs, forums, social media. */
+const UNTRUSTED = /(^|\.)(wikipedia\.org|wikiwand\.com|fandom\.com|medium\.com|blogspot\.com|wordpress\.com|substack\.com|quora\.com|reddit\.com|facebook\.com|x\.com|twitter\.com|tiktok\.com|instagram\.com|youtube\.com|linkedin\.com|pinterest\.com)$/i;
+export function isTrustedUrl(url: string): boolean {
+  try {
+    return !UNTRUSTED.test(new URL(url).hostname);
+  } catch {
+    return false;
   }
 }
 
@@ -298,7 +206,7 @@ interface OAWork {
 }
 
 /** Recent scholarly works (with abstracts) from OpenAlex. Last 2 years; widened to 5 when fewer than 2 are found. */
-export async function openAlexSearch(q: string, fetchFn: FetchFn, signal: AbortSignal, now = new Date(), limit = 3): Promise<WebSource[]> {
+export async function openAlexSearch(q: string, fetchFn: FetchFn, signal: AbortSignal, now = new Date(), limit = 4): Promise<WebSource[]> {
   const fields = 'id,doi,display_name,publication_date,type,primary_location,authorships,abstract_inverted_index';
   const get = async (years: number) => {
     const from = new Date(now.getTime());
@@ -385,6 +293,8 @@ export async function webSearch(opts: {
   max?: number;
   /** Also search scholarly works (OpenAlex). Default true. */
   scholarly?: boolean;
+  /** Results from the trusted-news index (news.ts), injected by the app. */
+  trusted?: (signal: AbortSignal) => Promise<WebSource[]>;
 }): Promise<{ sources: WebSource[]; errors: string[] }> {
   const fetchFn = opts.fetchFn ?? ((u, i) => fetch(u, i));
   const { signal, done } = timeoutSignal(opts.timeoutMs ?? 9000, opts.signal);
@@ -392,18 +302,16 @@ export async function webSearch(opts: {
   const useGateway = !!opts.gateway && !gatewaySearchOff;
   // Listed in the order results are shown: news first (freshest), then web
   // results, then encyclopedia intros.
-  const tasks: Promise<WebSource[]>[] = [];
-  if (opts.news) tasks.push(wikipediaNews(opts.query, fetchFn, signal, opts.now));
-  if (useGateway) {
-    tasks.push(
-      gatewaySearch(opts.gateway!, opts.query, opts.news, fetchFn, signal).then((r) => {
+  const trusted = opts.trusted ? opts.trusted(signal) : Promise.resolve([] as WebSource[]);
+  const gateway = useGateway
+    ? gatewaySearch(opts.gateway!, opts.query, opts.news, fetchFn, signal).then((r) => {
         if (r === null) gatewaySearchOff = true;
         return r ?? [];
-      }),
-    );
-  }
-  if (opts.scholarly !== false) tasks.push(openAlexSearch(opts.query, fetchFn, signal, opts.now));
-  tasks.push(wikipediaSearch(opts.query, fetchFn, signal, 2));
+      })
+    : Promise.resolve([] as WebSource[]);
+  const scholarly = opts.scholarly !== false ? openAlexSearch(opts.query, fetchFn, signal, opts.now) : Promise.resolve([] as WebSource[]);
+  // News questions: the trusted index first; otherwise research first.
+  const tasks = opts.news ? [trusted, gateway, scholarly] : [scholarly, gateway, trusted];
   const settled = await Promise.allSettled(tasks);
   done();
   if (opts.signal?.aborted) throw opts.signal.reason ?? new DOMException('Aborted', 'AbortError');
@@ -415,6 +323,7 @@ export async function webSearch(opts: {
       continue;
     }
     for (const s of r.value) {
+      if (!isTrustedUrl(s.url)) continue;
       const key = s.url.replace(/[#?].*$/, '').toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
@@ -450,21 +359,24 @@ export function dateLine(now = new Date(), timeZone?: string): string {
 
 const KIND_LABEL: Record<SourceKind, string> = {
   scholarly: 'scholarly work',
-  web: 'web page',
-  wikipedia: 'Wikipedia article (does not count as evidence under strict source rules)',
-  'wiki-news': 'Wikipedia news list (does not count as evidence under strict source rules)',
+  official: 'official publication (government or intergovernmental body)',
+  news: 'news organisation report (use for recent events; weaker than official or scholarly sources)',
+  web: 'web page from a trusted domain',
 };
 
 /** One numbered result, with everything a careful answer needs to cite it. */
 export function describeSource(s: WebSource): string {
   const lines = [`[${s.n}] ${s.title}`];
   const kind = s.kind ? KIND_LABEL[s.kind] : 'web page';
-  lines.push(`Type: ${kind}${s.workType ? ` (${s.workType})` : ''}`);
+  lines.push(`Type: ${kind}${s.workType && s.kind === 'scholarly' ? ` (${s.workType})` : ''}`);
   if (s.authors?.length) lines.push(`Authors: ${s.authors.join('; ')}`);
+  else if (s.org) lines.push(`Author (organisation): ${s.org}`);
   const where = s.venue || s.site;
-  if (s.date || where) lines.push(`${s.kind === 'wikipedia' ? 'Last edited' : 'Published'}: ${s.date ?? 'date not given'}${where ? ` · ${where}` : ''}`);
+  if (s.date || where) lines.push(`Published: ${s.date ? s.date.slice(0, 10) : 'date not given'}${where ? ` · ${where}` : ''}`);
   if (s.doi) lines.push(`DOI: ${s.doi}`);
   lines.push(`URL: ${s.url}`);
+  if (s.apaInText) lines.push(`APA 7th in-text: ${s.apaInText}`);
+  if (s.apaRef) lines.push(`APA 7th reference: ${s.apaRef}`);
   lines.push(`Text shown (${s.part ?? 'extract'}, the only part you have seen): ${s.snippet}`);
   return lines.join('\n');
 }
@@ -474,11 +386,11 @@ export function describeSource(s: WebSource): string {
 export function webPrompt(query: string, sources: WebSource[], now = new Date(), timeZone?: string, opts: { rules?: boolean } = {}): string {
   const head = dateLine(now, timeZone);
   if (!sources.length) {
-    return `${head}\nWeb search results: a search for "${query}" found nothing useful (or could not be reached). Treat every outside fact as unverified, and say that your information may be out of date.`;
+    return `${head}\nWeb search results: a search of trusted sources for "${query}" found nothing useful (or could not be reached). Do not present outside facts as checked: say that no trusted source was found, and mark anything from your own knowledge as unverified and possibly out of date.`;
   }
   const cite = opts.rules
-    ? 'Cite the results you use in the format the answer rules require, using each result\'s URL exactly. Do not cite them as bare numbers. JeeA! also lists them as chips under your answer.'
-    : 'Cite the results you use with their number in square brackets, like [1] or [2][3], right after the sentence.';
+    ? 'Cite in APA 7th style: copy each result\'s "APA 7th in-text" citation exactly and write it in the format the answer rules require (a coloured link to the result\'s URL, then a ↗ link). End with a reference list that copies the "APA 7th reference" of every result you cited, and only those, in alphabetical order. Never cite a bare number such as [1].'
+    : 'Cite in APA 7th style: after each sentence that uses a result, copy its "APA 7th in-text" citation exactly, e.g. (United Nations, 2026a). End with a "References" list that copies the "APA 7th reference" of every result you cited, and only those, in alphabetical order. Never cite a bare number such as [1].';
   return [
     head,
     `Web search results for "${query}", fetched just now (${sources.length}):`,
@@ -488,6 +400,7 @@ export function webPrompt(query: string, sources: WebSource[], now = new Date(),
     'How to use them: these results are newer than your training data, so prefer them for facts that change over time (dates, people in office, prices, scores, versions, news, recent research).',
     cite,
     'If results disagree, say so and prefer the newest strong source. If they do not answer the question, say that briefly, then answer from your own knowledge and mark it as unverified and possibly out of date.',
+    'Use two or more independent results for each key claim when they exist. For a list of events, include only events found in these results, with the date shown; never invent times of day, places or numbers, and leave out anything you cannot support.',
     'Never invent a source, author, date, DOI or link that is not listed above.',
   ].join('\n');
 }

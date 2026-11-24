@@ -129,5 +129,8 @@ export function renderMarkdown(src: string): string {
   return html;
 }
 
+/** Markdown tokens (with the maths extensions), for exporting to other formats. */
+export const lexMarkdown = (src: string) => md.lexer(src);
+
 export const extFor = (lang: string) =>
   ({ javascript: 'js', js: 'js', typescript: 'ts', ts: 'ts', python: 'py', py: 'py', html: 'html', xml: 'xml', css: 'css', json: 'json', bash: 'sh', sh: 'sh', java: 'java', c: 'c', cpp: 'cpp', csharp: 'cs', go: 'go', rust: 'rs', sql: 'sql', yaml: 'yml', markdown: 'md', php: 'php', kotlin: 'kt', swift: 'swift', ruby: 'rb' } as Record<string, string>)[lang] ?? 'txt';

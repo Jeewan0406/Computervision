@@ -26,7 +26,11 @@
  *     add the secret TAVILY_API_KEY (from tavily.com). Without it the app
  *     still searches Wikipedia on its own. Optional text: SEARCH_PER_MINUTE
  *     (searches per visitor per minute, default 6). Results are cached for
- *     10 minutes to save your search credits.
+ *     10 minutes to save your search credits. Only trusted sites are searched
+ *     (TRUSTED_DOMAINS below: intergovernmental bodies, governments,
+ *     universities, journals, established news organisations).
+ *  3d. With the Workers AI binding, visitors can also make images (FLUX.1
+ *     [schnell]); optional text IMAGE_PER_MINUTE (default 3).
  *  4. Copy the worker URL (https://jeea-gateway.<name>.workers.dev) into
  *     public/jeea.config.json -> "gateway" in your repository.
  *
@@ -36,7 +40,9 @@
  *                                 "nvidia:meta/llama-3.3-70b-instruct"
  *   POST /v1/search            -> {query, max_results?, topic?: "general"|"news"}
  *                                 -> {results: [{title, url, content, published_date}]}
- *                                 (501 when TAVILY_API_KEY is not set)
+ *                                 trusted sites only (501 when TAVILY_API_KEY is not set)
+ *   POST /v1/images/generations -> {prompt, steps?} -> {data: [{b64_json}]}
+ *                                 FLUX.1 [schnell] on Workers AI (501 without the AI binding)
  */
 
 const UPSTREAMS = {
@@ -167,7 +173,28 @@ async function listUpstream(name, up, key) {
     .filter((id) => !up.freeOnly || id.endsWith(':free'));
 }
 
-/** Web search through Tavily with the owner's key, cached for 10 minutes. */
+/** Sites JeeA! treats as trusted: intergovernmental bodies, governments,
+ * universities, journals and publishers, and established news organisations.
+ * Edit to suit your site. */
+const TRUSTED_DOMAINS = [
+  'un.org', 'who.int', 'worldbank.org', 'imf.org', 'oecd.org', 'unicef.org', 'unhcr.org', 'unep.org', 'wmo.int', 'fao.org', 'wfp.org', 'iaea.org',
+  'reliefweb.int', 'adb.org', 'europa.eu', 'esa.int', 'nasa.gov', 'noaa.gov', 'cdc.gov', 'nih.gov', 'gov.uk', 'gov.bt',
+  'nature.com', 'science.org', 'thelancet.com', 'nejm.org', 'bmj.com', 'pnas.org', 'cell.com', 'plos.org', 'springer.com', 'sciencedirect.com',
+  'wiley.com', 'tandfonline.com', 'sagepub.com', 'oup.com', 'cambridge.org', 'ieee.org', 'acm.org', 'arxiv.org', 'doi.org',
+  'bbc.co.uk', 'bbc.com', 'npr.org', 'dw.com', 'aljazeera.com', 'france24.com', 'theguardian.com', 'cbc.ca', 'apnews.com', 'reuters.com', 'bbs.bt', 'kuenselonline.com',
+];
+/** Government, university and intergovernmental addresses are trusted too. */
+const TRUSTED_SUFFIX = /(\.gov|\.gov\.[a-z]{2}|\.edu|\.edu\.[a-z]{2}|\.ac\.[a-z]{2}|\.int|\.mil)$/i;
+export function trustedUrl(url) {
+  try {
+    const host = new URL(url).hostname.toLowerCase().replace(/^www\./, '');
+    return TRUSTED_SUFFIX.test(host) || TRUSTED_DOMAINS.some((d) => host === d || host.endsWith(`.${d}`));
+  } catch {
+    return false;
+  }
+}
+
+/** Web search through Tavily with the owner's key, limited to trusted sites, cached for 10 minutes. */
 async function webSearch(env, body, cors) {
   const query = String(body?.query ?? '').trim().slice(0, 400);
   if (!query) return json({ error: { message: 'Missing "query".' } }, 400, cors);
@@ -180,12 +207,12 @@ async function webSearch(env, body, cors) {
   const r = await fetch('https://api.tavily.com/search', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.TAVILY_API_KEY}` },
-    body: JSON.stringify({ query, max_results: max, topic, search_depth: 'basic', include_answer: false }),
+    body: JSON.stringify({ query, max_results: max, topic, search_depth: 'basic', include_answer: false, include_domains: TRUSTED_DOMAINS }),
   });
   if (!r.ok) return json({ error: { message: `Search provider error (HTTP ${r.status}).` } }, r.status === 429 ? 429 : 502, cors);
   const data = await r.json();
   const results = (Array.isArray(data?.results) ? data.results : [])
-    .filter((x) => x && typeof x.url === 'string' && typeof x.content === 'string')
+    .filter((x) => x && typeof x.url === 'string' && typeof x.content === 'string' && trustedUrl(x.url))
     .map((x) => ({ title: String(x.title || ''), url: x.url, content: x.content.slice(0, 1500), published_date: x.published_date || undefined }));
   const out = { results };
   if (cache) await cache.put(cacheKey, new Response(JSON.stringify(out), { headers: { 'Cache-Control': 'max-age=600' } }));
@@ -211,7 +238,7 @@ export default {
     if (request.method === 'GET' && (path === '' || path === '/' || path === '/v1')) {
       const ready = Object.keys(UPSTREAMS).filter((n) => env[UPSTREAMS[n].secret]);
       if (env.AI) ready.unshift('cloudflare');
-      return json({ name: 'JeeA Gateway', providers: ready, search: !!env.TAVILY_API_KEY, endpoints: ['/v1/models', '/v1/chat/completions', '/v1/search'] }, 200, cors);
+      return json({ name: 'JeeA Gateway', providers: ready, search: !!env.TAVILY_API_KEY, images: !!env.AI, endpoints: ['/v1/models', '/v1/chat/completions', '/v1/search', '/v1/images/generations'] }, 200, cors);
     }
 
     if (request.method === 'GET' && path === '/v1/models') {
@@ -227,6 +254,30 @@ export default {
         }
       }
       return json({ object: 'list', data: out }, 200, cors);
+    }
+
+    if (request.method === 'POST' && path === '/v1/images/generations') {
+      if (!env.AI) return json({ error: { message: 'This gateway has no Workers AI binding named "AI", so it cannot make images.' } }, 501, cors);
+      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+      const perMinute = Number(env.IMAGE_PER_MINUTE || 3);
+      if (!allowed(`image:${ip}`, perMinute)) {
+        return new Response(JSON.stringify({ error: { message: `Image limit reached: ${perMinute} per minute.` } }), {
+          status: 429,
+          headers: { 'Content-Type': 'application/json', 'Retry-After': '60', ...cors },
+        });
+      }
+      let body;
+      try {
+        body = JSON.parse(await request.text());
+      } catch {
+        return json({ error: { message: 'Body must be JSON.' } }, 400, cors);
+      }
+      const prompt = String(body?.prompt ?? '').trim().slice(0, 2048);
+      if (!prompt) return json({ error: { message: 'Missing "prompt".' } }, 400, cors);
+      const steps = Math.max(1, Math.min(8, Number(body?.steps) || 4));
+      const out = await env.AI.run('@cf/black-forest-labs/flux-1-schnell', { prompt, steps });
+      if (!out?.image) return json({ error: { message: 'Workers AI returned no image.' } }, 502, cors);
+      return json({ created: Math.floor(Date.now() / 1000), data: [{ b64_json: out.image }] }, 200, cors);
     }
 
     if (request.method === 'POST' && path === '/v1/search') {
@@ -296,6 +347,6 @@ export default {
       return new Response(upstream.body, { status: upstream.status, headers }); // streams Server-Sent Events through
     }
 
-    return json({ error: { message: 'Not found. Use /v1/models, /v1/chat/completions or /v1/search.' } }, 404, cors);
+    return json({ error: { message: 'Not found. Use /v1/models, /v1/chat/completions, /v1/search or /v1/images/generations.' } }, 404, cors);
   },
 };

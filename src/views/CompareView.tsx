@@ -16,6 +16,7 @@ import { MessageItem, Markdown, Metrics, Reasoning, TypingDots } from '../compon
 import { Composer } from '../components/Composer';
 import { toApiMessages } from './ChatView';
 import { SourcesBar, WebToggle } from '../components/Web';
+import { ExportMenu, titleOf } from '../components/Export';
 import { linkCitations } from '../lib/web';
 
 const MAX_LANES = 6;
@@ -245,6 +246,7 @@ export function CompareView() {
                         {m.status === 'done' && (
                           <div className="lane-foot">
                             <Metrics m={m} />
+                            <ExportMenu title={titleOf(split.answer)} getMarkdown={() => split.answer} sources={m.sources} getNode={(b) => b?.closest<HTMLElement>('.lane-a') ?? null} />
                             {winner === lane.id ? (
                               <span className="win-badge"><Trophy size={13} /> Winner</span>
                             ) : !winner && !busy ? (

@@ -2,9 +2,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  webDecision, searchQuery, wikipediaSearch, wikipediaNews, webSearch, webPrompt, linkCitations,
-  currentEventsTitle, listItems, dateLine, resetGatewaySearch, abstractFromIndex, openAlexSearch, describeSource,
+  webDecision, searchQuery, webSearch, webPrompt, linkCitations,
+  dateLine, resetGatewaySearch, abstractFromIndex, openAlexSearch, describeSource, isTrustedUrl,
 } from '../src/lib/web.ts';
+import { apaName, apaAuthors, apaInText, apaReference, apaSuffixes, withApa } from '../src/lib/apa.ts';
+import { dateHint, topicWords, searchNews, type NewsIndex } from '../src/lib/news.ts';
 import { readFileSync } from 'node:fs';
 
 test('Auto mode searches only when a message needs fresh facts', () => {
@@ -57,70 +59,39 @@ test('search words drop filler and borrow the topic for short follow-ups', () =>
 
 const ok = (data: unknown) => new Response(JSON.stringify(data), { status: 200, headers: { 'content-type': 'application/json' } });
 
-test('Wikipedia search: one CORS-enabled request, results in search order', async () => {
-  const urls: string[] = [];
-  const fetchFn = async (u: string) => {
-    urls.push(u);
-    return ok({ query: { pages: [
-      { title: 'Second', index: 2, extract: 'B'.repeat(60), fullurl: 'https://en.wikipedia.org/wiki/Second', touched: '2026-11-20T10:00:00Z' },
-      { title: 'First', index: 1, extract: 'A'.repeat(60), fullurl: 'https://en.wikipedia.org/wiki/First', touched: '2026-11-21T10:00:00Z' },
-      { title: 'Stub', index: 3, extract: 'short' },
-    ] } });
-  };
-  const r = await wikipediaSearch('prime minister Bhutan', fetchFn, new AbortController().signal);
-  assert.equal(urls.length, 1);
-  assert.match(urls[0], /origin=\*/);
-  assert.match(urls[0], /generator=search&gsrlimit=3&gsrsearch=prime%20minister%20Bhutan/);
-  assert.match(urls[0], /exintro=1&explaintext=1/);
-  assert.deepEqual(r.map((s) => s.title), ['First', 'Second']);
-  assert.equal(r[0].date, '2026-11-21');
-  assert.equal(r[0].site, 'Wikipedia');
-});
-
-test('news: daily Current events page names and list items', async () => {
-  assert.equal(currentEventsTitle(new Date('2026-11-22T10:00:00Z')), 'Portal:Current events/2026 November 22');
-  const items = listItems('<ul><li><b>Bhutan</b> holds a national election, with turnout of 70&#160;%.</li><li>Ongoing: x</li><li>Short</li></ul>');
-  assert.deepEqual(items, ['Bhutan holds a national election, with turnout of 70 %.']);
-  const pages: string[] = [];
-  const fetchFn = async (u: string) => {
-    const page = decodeURIComponent(new URL(u).searchParams.get('page') ?? '');
-    pages.push(page);
-    return ok({ parse: { text: page === 'Template:In the news' ? '<ul><li>Bhutan opens a new airport in Gelephu Mindfulness City.</li><li>A storm hits the Pacific coast of a far away land.</li></ul>' : '' } });
-  };
-  const r = await wikipediaNews('Bhutan airport', fetchFn, new AbortController().signal, new Date('2026-11-22T10:00:00Z'));
-  assert.deepEqual(pages, ['Template:In the news', 'Portal:Current events/2026 November 22', 'Portal:Current events/2026 November 21']);
-  assert.equal(r.length, 1);
-  assert.match(r[0].snippet, /Gelephu/);
-  assert.ok(!r[0].snippet.includes('storm'));
-});
-
-test('webSearch: gateway first, falls back to Wikipedia when the gateway has no search key', async () => {
+test('webSearch: trusted sources only; gateway asked once; Wikipedia and blogs dropped', async () => {
   resetGatewaySearch();
   const calls: string[] = [];
-  const wiki = { query: { pages: [{ title: 'Bhutan', index: 1, extract: 'Bhutan is a country in the Eastern Himalayas. '.repeat(3), fullurl: 'https://en.wikipedia.org/wiki/Bhutan' }] } };
+  const oa = { results: [{ id: 'https://openalex.org/W9', doi: 'https://doi.org/10.1/abc', display_name: 'Hydropower in the Himalaya', publication_date: '2025-05-01', type: 'article',
+    primary_location: { version: 'publishedVersion', source: { display_name: 'Energy Policy' } }, authorships: [{ author: { display_name: 'Karma Dorji' } }],
+    abstract_inverted_index: Object.fromEntries('Hydropower is the main source of electricity in Bhutan and most of it is exported to India today.'.split(' ').map((w, i) => [w + (i ? '' : ''), [i]])) }] };
   const noKey = async (u: string) => {
     calls.push(u);
     if (u.startsWith('https://gw.test')) return new Response('{}', { status: 501 });
-    return ok(wiki);
+    return ok(oa);
   };
-  const a = await webSearch({ query: 'Bhutan', news: false, gateway: 'https://gw.test', fetchFn: noKey });
-  assert.deepEqual(a.sources.map((s) => [s.n, s.title]), [[1, 'Bhutan']]);
-  assert.deepEqual(a.errors, []);
+  const trusted = async () => [
+    { n: 0, title: 'Hydropower deal signed', url: 'https://news.un.org/en/story/1', snippet: 'A deal.', site: 'UN News', date: '2026-11-24T08:00:00Z', kind: 'official' as const, org: 'United Nations' },
+    { n: 0, title: 'Hydropower (encyclopedia)', url: 'https://en.wikipedia.org/wiki/Hydropower', snippet: 'x', site: 'Wikipedia', kind: 'web' as const },
+    { n: 0, title: 'My blog on dams', url: 'https://someone.medium.com/dams', snippet: 'x', site: 'Medium', kind: 'web' as const },
+  ];
+  const a = await webSearch({ query: 'hydropower Bhutan', news: true, gateway: 'https://gw.test', fetchFn: noKey, trusted });
+  assert.deepEqual(a.sources.map((s) => [s.n, s.kind, s.site]), [[1, 'official', 'UN News'], [2, 'scholarly', 'Energy Policy']]);
+  assert.ok(!calls.some((u) => /wikipedia/.test(u)), 'Wikipedia is never called');
   calls.length = 0;
-  await webSearch({ query: 'Bhutan', news: false, gateway: 'https://gw.test', fetchFn: noKey });
+  await webSearch({ query: 'hydropower Bhutan', news: false, gateway: 'https://gw.test', fetchFn: noKey, trusted });
   assert.ok(!calls.some((u) => u.startsWith('https://gw.test')), 'a gateway without search is not asked again');
 
   resetGatewaySearch();
-  const withKey = async (u: string, init?: RequestInit) => {
-    if (u === 'https://gw.test/v1/search') {
-      assert.equal(JSON.parse(String(init?.body)).query, 'Bhutan');
-      return ok({ results: [{ title: 'Bhutan today', url: 'https://www.kuenselonline.com/x', content: 'Fresh news text', published_date: '2026-11-21' }] });
-    }
-    return ok(wiki);
+  const withKey = async (u: string) => {
+    if (u === 'https://gw.test/v1/search') return ok({ results: [
+      { title: 'Energy report', url: 'https://www.adb.org/x', content: 'Report text', published_date: '2026-11-20' },
+      { title: 'Wiki copy', url: 'https://en.wikipedia.org/wiki/x', content: 'x' },
+    ] });
+    return ok({ results: [] });
   };
-  const b = await webSearch({ query: 'Bhutan', news: false, gateway: 'https://gw.test', fetchFn: withKey });
-  assert.deepEqual(b.sources.map((s) => [s.n, s.site]), [[1, 'kuenselonline.com'], [2, 'Wikipedia']]);
-  assert.equal(b.sources[0].date, '2026-11-21');
+  const b = await webSearch({ query: 'hydropower Bhutan', news: false, gateway: 'https://gw.test', fetchFn: withKey });
+  assert.deepEqual(b.sources.map((s) => [s.kind, s.site]), [['web', 'adb.org']]);
 });
 
 test('webSearch: a failing source is reported, not thrown; stopping throws', async () => {
@@ -138,19 +109,20 @@ test('webSearch: a failing source is reported, not thrown; stopping throws', asy
 
 test('prompt has the date, labelled numbered sources and citation rules; [n] become links', () => {
   const now = new Date('2026-11-22T10:00:00Z');
-  const src = [{ n: 1, title: 'Bhutan', url: 'https://en.wikipedia.org/wiki/Bhutan', snippet: 'Text', site: 'Wikipedia', date: '2026-11-21', kind: 'wikipedia' as const, part: 'Introduction' }];
+  const src = withApa([{ n: 1, title: 'Bhutan joins climate pact', url: 'https://news.un.org/en/story/1', snippet: 'Text', site: 'UN News', org: 'United Nations', date: '2026-11-21T09:00:00Z', kind: 'official' as const, part: "Summary from the organisation's feed" }]);
   const p = webPrompt('Bhutan', src, now, 'Asia/Thimphu');
   assert.match(p, /^Today is Sunday,? 22 November 2026, 16:00 \(Asia\/Thimphu\)\./);
-  assert.match(p, /\[1\] Bhutan\nType: Wikipedia article \(does not count as evidence/);
-  assert.match(p, /Last edited: 2026-11-21 · Wikipedia\nURL: https:\/\/en\.wikipedia\.org\/wiki\/Bhutan\nText shown \(Introduction, the only part you have seen\): Text/);
-  assert.match(p, /with their number in square brackets/);
+  assert.match(p, /\[1\] Bhutan joins climate pact\nType: official publication \(government or intergovernmental body\)\nAuthor \(organisation\): United Nations\nPublished: 2026-11-21 · UN News\nURL: https:\/\/news\.un\.org\/en\/story\/1/);
+  assert.match(p, /APA 7th in-text: \(United Nations, 2026\)\nAPA 7th reference: United Nations\. \(2026, November 21\)\. \*Bhutan joins climate pact\*\. UN News\. https:\/\/news\.un\.org\/en\/story\/1/);
+  assert.match(p, /copy its "APA 7th in-text" citation exactly/);
+  assert.match(p, /Never cite a bare number/);
+  assert.match(p, /never invent times of day/);
   const withRules = webPrompt('Bhutan', src, now, 'UTC', { rules: true });
   assert.match(withRules, /format the answer rules require/);
-  assert.doesNotMatch(withRules, /square brackets/);
   assert.match(webPrompt('x', [], now, 'UTC'), /found nothing useful/);
   assert.match(dateLine(now, 'UTC'), /10:00 \(UTC\)/);
   const md = linkCitations('Thimphu is the capital [1]. Code `[1]` and [7] stay.', src);
-  assert.equal(md, 'Thimphu is the capital [\\[1\\]](https://en.wikipedia.org/wiki/Bhutan "Source 1"). Code `[1]` and [7] stay.');
+  assert.equal(md, 'Thimphu is the capital [\\[1\\]](https://news.un.org/en/story/1 "Source 1"). Code `[1]` and [7] stay.');
 });
 
 test('OpenAlex: abstract rebuilt from the inverted index', () => {
@@ -177,7 +149,7 @@ test('OpenAlex: last 2 years first, widened to 5, peer-reviewed metadata kept', 
   const p0 = new URL(urls[0]).searchParams;
   assert.equal(p0.get('search'), 'hydropower Bhutan');
   assert.equal(p0.get('filter'), 'from_publication_date:2024-11-22,has_abstract:true,is_retracted:false');
-  assert.equal(p0.get('per-page'), '3');
+  assert.equal(p0.get('per-page'), '4');
   assert.match(p0.get('select') ?? '', /abstract_inverted_index/);
   assert.match(new URL(urls[1]).searchParams.get('filter') ?? '', /from_publication_date:2021-11-22/);
   assert.equal(r.length, 2);
@@ -196,6 +168,75 @@ test('answer rules files: owner text kept whole, app notes cover the conflicts',
   assert.match(rules, /never broken except in sentences saying "prefer"/);
   const ctx = readFileSync(new URL('../src/rules/jeea-context.md', import.meta.url), 'utf8');
   assert.match(ctx, /cannot open web pages yourself/);
-  assert.match(ctx, /"Wikipedia" results never count as evidence/);
+  assert.match(ctx, /No Wikipedia, blogs, forums or social media are given/);
+  assert.match(ctx, /APA 7th/);
+  assert.match(ctx, /Never invent times of day/);
   assert.match(ctx, /no widget tool/);
+});
+
+test('APA 7th: names, author lists, in-text forms and references', () => {
+  assert.equal(apaName('Karma Dorji'), 'Dorji, K.');
+  assert.equal(apaName('Dorji, Karma'), 'Dorji, K.');
+  assert.equal(apaName('J. R. R. Tolkien'), 'Tolkien, J. R. R.');
+  assert.equal(apaName('Ludwig van Beethoven'), 'van Beethoven, L.');
+  assert.equal(apaName('Jean-Paul Sartre'), 'Sartre, J.-P.');
+  assert.equal(apaAuthors(['Karma Dorji', 'Pema Wangmo']), 'Dorji, K., & Wangmo, P.');
+  const many = Array.from({ length: 22 }, (_, i) => `Author${i + 1} Name`);
+  const list = apaAuthors(many.map((m, i) => `A${i} ${m.split(' ')[0]}`));
+  assert.match(list, /, \. \. \. Author22, A\.$/);
+  assert.equal(list.split('., ').length, 20, '19 names, then the dots and the last');
+  const one = { title: 'A study', url: 'https://doi.org/10.1/x', date: '2025-03-01', authors: ['Karma Dorji'], venue: 'Energy Policy', doi: '10.1/x', style: 'scholarly' as const };
+  assert.equal(apaInText(one), '(Dorji, 2025)');
+  assert.equal(apaInText({ ...one, authors: ['Karma Dorji', 'Pema Wangmo'] }), '(Dorji & Wangmo, 2025)');
+  assert.equal(apaInText({ ...one, authors: ['Karma Dorji', 'Pema Wangmo', 'Sonam Choden'] }), '(Dorji et al., 2025)');
+  assert.equal(apaReference(one), 'Dorji, K. (2025). A study. *Energy Policy*. https://doi.org/10.1/x');
+  const org = { title: 'Aid reaches Gaza', url: 'https://news.un.org/1', date: '2026-11-24T08:00:00Z', org: 'United Nations', venue: 'UN News', style: 'dated' as const };
+  assert.equal(apaInText(org), '(United Nations, 2026)');
+  assert.equal(apaReference(org), 'United Nations. (2026, November 24). *Aid reaches Gaza*. UN News. https://news.un.org/1');
+  const bbc = { ...org, org: 'BBC News', venue: 'BBC News', title: 'Summit opens.' };
+  assert.equal(apaReference(bbc), 'BBC News. (2026, November 24). *Summit opens*. https://news.un.org/1', 'site name left out when it is the author');
+  // Same author and year: letters by title order.
+  const s = apaSuffixes([{ ...org, title: 'Zebra' }, { ...org, title: 'Apple' }, one]);
+  assert.deepEqual(s, ['b', 'a', '']);
+  assert.equal(apaInText({ ...org, title: 'Zebra' }, 'b'), '(United Nations, 2026b)');
+  assert.equal(apaReference({ ...org, title: 'Zebra' }, 'b'), 'United Nations. (2026b, November 24). *Zebra*. UN News. https://news.un.org/1');
+});
+
+const INDEX: NewsIndex = {
+  version: 1,
+  generatedAt: '2026-11-24T12:00:00Z',
+  sources: [],
+  items: [
+    { t: 'Leaders agree climate finance deal', u: 'https://news.un.org/1', d: '2026-11-24T08:00:00Z', s: 'A climate finance deal was agreed.', o: 'United Nations', n: 'UN News', k: 'intergovernmental', f: 'un-news' },
+    { t: 'Climate finance talks end', u: 'https://www.bbc.co.uk/news/2', d: '2026-11-24T09:00:00Z', s: 'Talks ended with a deal.', o: 'BBC News', k: 'news', f: 'bbc-world' },
+    { t: 'Second BBC climate story', u: 'https://www.bbc.co.uk/news/3', d: '2026-11-24T10:00:00Z', s: 'Climate finance again.', o: 'BBC News', k: 'news', f: 'bbc-world' },
+    { t: 'Third BBC climate story', u: 'https://www.bbc.co.uk/news/4', d: '2026-11-24T11:00:00Z', s: 'Climate finance once more.', o: 'BBC News', k: 'news', f: 'bbc-world' },
+    { t: 'Mars rover finds clay', u: 'https://www.nasa.gov/5', d: '2026-11-22T05:00:00Z', s: 'Rover news.', o: 'NASA', k: 'government', f: 'nasa' },
+    { t: 'Gene therapy trial results', u: 'https://www.nejm.org/6', d: '2026-11-20T12:00:00Z', s: 'A randomised trial.', o: 'New England Journal of Medicine', k: 'scholarly', f: 'nejm', a: ['Ann Lee', 'Raj Patel'] },
+  ],
+};
+
+test('news index: dates in questions, topic words, diversity and filters', () => {
+  const now = new Date('2026-11-24T12:00:00Z');
+  assert.equal(dateHint('Global news on 24 Nov 2026', now), '2026-11-24');
+  assert.equal(dateHint('What happened on November 22, 2026?', now), '2026-11-22');
+  assert.equal(dateHint('news today', now), '2026-11-24');
+  assert.equal(dateHint('news yesterday', now), '2026-11-23');
+  assert.equal(dateHint('2026-11-20 events', now), '2026-11-20');
+  assert.equal(dateHint('climate finance', now), null);
+  assert.deepEqual(topicWords('Global news 24 Nov 2026'), []);
+  assert.deepEqual(topicWords('climate finance deal news'), ['climate', 'finance', 'deal']);
+
+  const day = searchNews(INDEX, 'Global news 24 Nov 2026', { text: 'Global news on 24 Nov 2026', now });
+  assert.deepEqual(day.map((s) => s.url), ['https://news.un.org/1', 'https://www.bbc.co.uk/news/4', 'https://www.bbc.co.uk/news/3'], 'that day only, official first, then newest, at most 2 per organisation');
+  const topic = searchNews(INDEX, 'climate finance deal', { now });
+  assert.equal(topic[0].url, 'https://news.un.org/1', 'official source ranks first');
+  assert.equal(topic.filter((s) => s.org === 'BBC News').length, 2);
+  assert.equal(searchNews(INDEX, 'climate finance deal', { now, allowNews: false }).every((s) => s.kind !== 'news'), true);
+  const med = searchNews(INDEX, 'gene therapy trial', { now });
+  assert.deepEqual([med[0].kind, med[0].venue, med[0].authors], ['scholarly', 'New England Journal of Medicine', ['Ann Lee', 'Raj Patel']]);
+  assert.equal(withApa(med)[0].apaInText, '(Lee & Patel, 2026)');
+  assert.deepEqual(searchNews(null, 'x'), []);
+  assert.equal(isTrustedUrl('https://en.wikipedia.org/wiki/X'), false);
+  assert.equal(isTrustedUrl('https://www.who.int/news'), true);
 });

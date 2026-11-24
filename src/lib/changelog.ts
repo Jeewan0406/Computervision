@@ -1,5 +1,5 @@
 /** In-app release log ("What's new"). Mirrors CHANGELOG.md. */
-export const APP_VERSION = '1.5.0';
+export const APP_VERSION = '1.6.0';
 
 export interface Release {
   version: string;
@@ -9,6 +9,20 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
+  {
+    version: '1.6.0',
+    date: '2026-11-24',
+    title: 'Trusted sources, APA 7th, documents and images',
+    items: [
+      { tag: 'new', feature: 'Trusted news', text: 'Every hour, this site\'s GitHub job collects news and releases from trusted organisations: UN News, ReliefWeb, NASA, ESA, the European Commission, GOV.UK and the CDC, new papers from Nature, Science, The Lancet, NEJM, BMJ, PNAS, PLOS ONE and Cell, and reports from BBC News, NPR, DW, Al Jazeera, France 24, The Guardian, CBC and BBS. Questions about recent events are answered from these, with several sources and their dates.' },
+      { tag: 'improved', feature: 'Sources', text: 'Wikipedia is no longer used. Blogs, forums and social media are filtered out everywhere, including the gateway\'s web search. A setting can leave out news organisations, so only official and scholarly sources are used.' },
+      { tag: 'new', feature: 'APA 7th', text: 'Every source now comes with a ready APA 7th in-text citation, such as (United Nations, 2026a), and a reference entry, which models copy. Same author and year get a, b, c letters in title order.' },
+      { tag: 'new', feature: 'Export', text: 'Any answer, or a whole chat, can be saved as a Word document, PDF, Excel workbook (tables, text and sources), PowerPoint slides, Markdown, or an image (PNG, JPG, SVG). Coloured citations stay coloured in Word and PowerPoint.' },
+      { tag: 'new', feature: 'Images', text: 'A new Images page makes pictures from a description: free with a Puter account (GPT Image, Gemini, FLUX, Grok), free for visitors through the JeeA Gateway (FLUX on Cloudflare), or with your own OpenAI key. Download as PNG, JPG or WebP.' },
+      { tag: 'improved', feature: 'Answer quality', text: 'Models are told to list only events found in the sources, with their dates, and never to invent times, places or numbers.' },
+      { tag: 'improved', feature: 'Agent', text: 'The Wikipedia tools are now off by default (they stay in the Tools list), and agents get the same trusted search results as Chat.' },
+    ],
+  },
   {
     version: '1.5.0',
     date: '2026-11-24',
