@@ -163,8 +163,8 @@ export function LogsView() {
       <TopBar
         right={
           <>
-            <button className="btn ghost sm" onClick={() => downloadText(`jeea-logs-${stamp}.csv`, logsToCSV(filtered), 'text/csv')} disabled={!filtered.length}><Download size={14} /> CSV</button>
-            <button className="btn ghost sm" onClick={() => downloadText(`jeea-logs-${stamp}.json`, JSON.stringify(filtered, null, 2), 'application/json')} disabled={!filtered.length}><Download size={14} /> JSON</button>
+            <button className="btn ghost sm" onClick={() => downloadText(`jeea-logs-${stamp}.csv`, logsToCSV(filtered), 'text/csv')} disabled={!filtered.length}><Download size={14} className="hide-xs" /> CSV</button>
+            <button className="btn ghost sm" onClick={() => downloadText(`jeea-logs-${stamp}.json`, JSON.stringify(filtered, null, 2), 'application/json')} disabled={!filtered.length}><Download size={14} className="hide-xs" /> JSON</button>
             <button className="icon-btn" title="Clear all logs" onClick={async () => {
               if (await confirm({ title: 'Clear all logs?', body: 'This removes the activity history from this browser.', confirmLabel: 'Clear', danger: true })) clear();
             }}><Trash2 size={16} /></button>

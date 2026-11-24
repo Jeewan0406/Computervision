@@ -950,3 +950,21 @@ label.chip { cursor: pointer; }
 .project-block { margin: 2px 0 12px; }
 .project-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 2px 6px; }
 .project-block .project-bar { margin: 0; }
+
+/* Sidebar: the middle scrolls, the bottom bar always shows (v1.8.1) */
+.sidebar { overflow: hidden; }
+.sidebar-middle { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; margin: 0 -4px; padding: 0 4px; scrollbar-width: thin; }
+.sidebar-middle .history { flex: 1 0 220px; }
+.sidebar-foot { flex-shrink: 0; }
+@media (max-height: 720px) {
+  .sidebar { gap: 8px; padding-top: 10px; padding-bottom: 10px; }
+  .sidebar-middle { gap: 8px; }
+  .nav-item { padding-top: 6px; padding-bottom: 6px; }
+}
+.topbar-right { flex-shrink: 0; }
+@media (max-width: 380px) {
+  .hide-xs { display: none !important; }
+  .topbar-logo { display: none !important; }
+  .topbar-right { gap: 2px; }
+  .topbar-right .btn.sm { padding-left: 8px; padding-right: 8px; }
+}

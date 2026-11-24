@@ -93,6 +93,9 @@ export function Sidebar() {
           <button className="icon-btn only-mobile" onClick={() => setNav(false)} aria-label="Close menu"><X size={18} /></button>
         </div>
 
+        {/* Everything between the logo and the bottom bar scrolls on short
+            screens, so the bottom bar (Settings, What's new, theme) always shows. */}
+        <div className="sidebar-middle">
         <ProjectBar />
 
         <button className="btn primary block new-btn" onClick={newSession}>
@@ -169,7 +172,7 @@ export function Sidebar() {
             </div>
           </div>
         )}
-        {(view === 'keys' || view === 'logs' || view === 'images') && <div className="flex-1" />}
+        </div>
 
         <div className="sidebar-foot">
           <button className="status-pill" onClick={() => setView('keys')} title="Open API Slots">
@@ -190,12 +193,16 @@ export function Sidebar() {
 
 export function TopBar({ children, right }: { children?: ReactNode; right?: ReactNode }) {
   const setNav = useUI((s) => s.setNav);
+  const openModal = useUI((s) => s.openModal);
   return (
     <header className="topbar">
       <button className="icon-btn only-mobile" onClick={() => setNav(true)} aria-label="Open menu"><Menu size={19} /></button>
       <span className="only-mobile topbar-logo"><LogoMark size={24} /></span>
       <div className="topbar-main">{children}</div>
-      <div className="topbar-right">{right}</div>
+      <div className="topbar-right">
+        {right}
+        <button className="icon-btn topbar-settings" title="Settings" aria-label="Open settings" onClick={() => openModal('settings')}><SettingsIcon size={17} /></button>
+      </div>
     </header>
   );
 }

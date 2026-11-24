@@ -1,5 +1,5 @@
 /** In-app release log ("What's new"). Mirrors CHANGELOG.md. */
-export const APP_VERSION = '1.8.0';
+export const APP_VERSION = '1.8.1';
 
 export interface Release {
   version: string;
@@ -9,6 +9,15 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
+  {
+    version: '1.8.1',
+    date: '2026-11-24',
+    title: 'Settings always within reach',
+    items: [
+      { tag: 'fixed', feature: 'Settings', text: 'On laptop screens about 650 pixels tall or less, the bottom of the left panel (Settings, What\'s new, theme) was pushed below the window after Projects moved to the top. The panel\'s middle now scrolls and the bottom bar always stays visible.' },
+      { tag: 'improved', feature: 'Settings button', text: 'Every page now also has a ⚙ Settings button at the top right, so Settings is one tap away on phones too.' },
+    ],
+  },
   {
     version: '1.8.0',
     date: '2026-11-24',

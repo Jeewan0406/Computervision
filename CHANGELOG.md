@@ -2,6 +2,15 @@
 
 All notable changes to JeeA! are listed here. The same notes appear in the app under **What's new** (✨).
 
+## 1.8.1 — 2026-11-24 — Settings always within reach
+
+### Fixed
+- On laptop windows about 650 pixels tall or less, the bottom of the left panel (Settings, What's new, theme, GitHub) was pushed below the window after Projects moved to the top, and the panel could not scroll. The middle of the panel now scrolls and the bottom bar always stays visible.
+
+### Improved
+- A ⚙ Settings button now sits at the top right of every page.
+- On very narrow phones (320 px), top-bar buttons get smaller so nothing runs off the screen.
+
 ## 1.8.0 — 2026-11-24 — One big instructions box, a stricter answer standard, projects on top
 
 ### New
