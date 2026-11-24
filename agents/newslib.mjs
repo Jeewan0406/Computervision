@@ -86,7 +86,7 @@ const clip = (s, n) => (s.length > n ? `${s.slice(0, n).replace(/\s+\S*$/, '')}â
  * results: [{ source, url, ok, error?, items? }]
  */
 /** How long items stay in the index: news moves fast, journals slowly. */
-export const MAX_AGE_HOURS = { news: 96, government: 14 * 24, intergovernmental: 14 * 24, scholarly: 30 * 24 };
+export const MAX_AGE_HOURS = { news: 96, government: 14 * 24, intergovernmental: 14 * 24, scholarly: 30 * 24, maker: 30 * 24 };
 
 export function buildIndex(results, now = new Date(), { maxAgeHours = MAX_AGE_HOURS, perSource = 25, summaryChars = 320 } = {}) {
   const future = now.getTime() + 36 * 3600_000; // some feeds date items a day ahead

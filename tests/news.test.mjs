@@ -58,7 +58,7 @@ test('feed list: only trusted source types, no Wikipedia or blogs', () => {
   const { sources } = JSON.parse(readFileSync(new URL('../agents/feeds.json', import.meta.url), 'utf8'));
   assert.ok(sources.length >= 25);
   for (const s of sources) {
-    assert.ok(['intergovernmental', 'government', 'scholarly', 'news'].includes(s.type), s.id);
+    assert.ok(['intergovernmental', 'government', 'scholarly', 'news', 'maker'].includes(s.type), s.id);
     assert.ok(s.urls.length >= 1 && s.urls.every((u) => u.startsWith('https://')), s.id);
     assert.ok(!s.urls.some((u) => /wikipedia|medium\.com|blogspot|wordpress\.com|substack/i.test(u)), s.id);
   }
