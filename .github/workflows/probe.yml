@@ -1,0 +1,27 @@
+# Run by hand: checks which free, no-key model services still answer and
+# whether a web page may read their replies (CORS). Prints a report in the log.
+name: Check free models
+
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: 'Service ids to check (space separated, empty = all)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node agents/probe-free.mjs $ONLY
+        env:
+          ONLY: ${{ inputs.only }}
