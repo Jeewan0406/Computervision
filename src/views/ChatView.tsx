@@ -7,6 +7,7 @@ import { useUI } from '../lib/ui';
 import { stopJobs } from '../lib/runner';
 import { streamReply } from '../lib/reply';
 import { prepareWeb, joinSystem } from '../lib/webrun';
+import { rulesText } from '../lib/rules';
 import { splitThink } from '../lib/text';
 import { downloadText, titleFrom, uid } from '../lib/utils';
 import type { ChatMsg } from '../lib/llm';
@@ -67,7 +68,7 @@ async function ask(sessionId: string) {
     jobId: `${sessionId}:${asstId}`,
     locate: (x) => (x as ChatSession).messages.find((m) => m.id === asstId),
     ref: s.model,
-    messages: toApiMessages(joinSystem(s.system, w.prompt), history),
+    messages: toApiMessages(joinSystem(rulesText(), s.system, w.prompt), history),
     params: s.params,
     feature: 'chat',
   });

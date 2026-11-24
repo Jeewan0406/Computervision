@@ -1,4 +1,4 @@
-import { memo, useMemo, useState, type MouseEvent } from 'react';
+import { memo, useEffect, useMemo, useState, type MouseEvent } from 'react';
 import { AlertTriangle, Brain, Check, ChevronDown, ChevronRight, Copy, Gauge, Pencil, Play, RotateCcw, Timer, Zap } from 'lucide-react';
 import type { Message } from '../lib/types';
 import { renderMarkdown, extFor } from '../lib/markdown';
@@ -8,12 +8,18 @@ import { openInCodeFrame } from '../lib/actions';
 import { useSettings, allProviders } from '../lib/settings';
 import { useUI } from '../lib/ui';
 import { ModelBadge } from './ModelPicker';
+import { MATH_HINT, loadMath, useMath } from '../lib/math';
 import { SourcesBar } from './Web';
 import { linkCitations } from '../lib/web';
 
 /** Markdown with working "Copy / Download / Run" buttons on code blocks. */
 export const Markdown = memo(function Markdown({ text, className = '' }: { text: string; className?: string }) {
-  const html = useMemo(() => renderMarkdown(text), [text]);
+  const mathOn = useMath((m) => m.ready);
+  const needsMath = MATH_HINT.test(text);
+  useEffect(() => {
+    if (needsMath && !mathOn) void loadMath();
+  }, [needsMath, mathOn]);
+  const html = useMemo(() => renderMarkdown(text), [text, mathOn]); // eslint-disable-line react-hooks/exhaustive-deps
   const toast = useUI((s) => s.toast);
   const onClick = async (e: MouseEvent<HTMLDivElement>) => {
     const btn = (e.target as HTMLElement).closest<HTMLElement>('[data-act]');

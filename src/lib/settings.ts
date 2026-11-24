@@ -27,8 +27,10 @@ export interface Settings {
   seenVersion: string;
   /** "owner/repo" that runs the 24/7 GitHub agents (auto-detected on github.io). */
   agentRepo: string;
-  /** Web search: 'auto' decides per message, 'on' always, 'off' never. */
+  /** Web search: 'on' every question (default), 'auto' decides per message, 'off' never. */
   webMode: WebMode;
+  /** The site owner's answer rules, sent to every model. `text: null` = built-in default. */
+  answerRules: { enabled: boolean; text: string | null };
 }
 
 interface SettingsActions {
@@ -58,7 +60,8 @@ const initial: Settings = {
   leaderboard: {},
   seenVersion: '',
   agentRepo: '',
-  webMode: 'auto',
+  webMode: 'on',
+  answerRules: { enabled: true, text: null },
 };
 
 const SESSION_KEYS = 'jeea.keys.session';
@@ -137,11 +140,13 @@ export const useSettings = create<Settings & SettingsActions>()(
     }),
     {
       name: 'jeea.settings',
-      version: 2,
+      version: 3,
       // v2: the Bhutan-inspired "druk" palette replaces violet as the default look.
+      // v3: web search runs for every question (the old default was "auto").
       migrate: (persisted, version) => {
         const st = (persisted ?? {}) as Partial<Settings>;
         if (version < 2 && (!st.accent || st.accent === 'violet')) st.accent = 'druk';
+        if (version < 3 && (!st.webMode || st.webMode === 'auto')) st.webMode = 'on';
         return st as Settings & SettingsActions;
       },
       storage,

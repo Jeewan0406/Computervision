@@ -2,6 +2,18 @@
 
 All notable changes to JeeA! are listed here. The same notes appear in the app under **What's new** (✨).
 
+## 1.5.0 — 2026-11-24 — Your answer rules, and the web for every question
+
+### New
+- **Answer rules** — the site owner's rules (`src/rules/answer-rules.md`, kept word for word) go to every model in Chat, Compare, Team and Agent, with a short note (`src/rules/jeea-context.md`) on how to apply them inside JeeA!: only the numbered web results count as opened sources, Wikipedia never counts as evidence, scholarly results show only the abstract, and there is no widget tool. Settings → Answer rules can switch them off, edit them (saved in the browser) or reset them. They add about 8,600 tokens per request.
+- **Web search for every question** — On is now the default (existing "Auto" users are moved to On). Every question in Chat, Compare, Team and Agent is searched first; bare greetings are skipped. Auto and Off remain.
+- **Research sources** — OpenAlex scholarly works with abstracts, from the last 2 years (widened to 5 when fewer than 2 are found), without retracted works. Results are labelled with their type, authors, date, journal, DOI and the part shown; source chips show author and year.
+- **Maths** — LaTeX in answers (`$...$`, `$$...$$`, `\(...\)`, `\[...\]`, `\boxed`, `\textcolor`) is rendered with KaTeX, loaded only when a message needs it. Prices such as "$5 and $10" are left as text.
+
+### Improved
+- A "request too long" error now explains that the answer rules add about 8,600 tokens and how to fix it.
+- Agent answers now show their web sources.
+
 ## 1.4.0 — 2026-11-22 — Answers with fresh facts from the web
 
 ### New

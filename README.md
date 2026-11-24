@@ -21,7 +21,9 @@ Chat with many AI models in one beautiful app. Start free with no key, add your 
 | Feature | What it does |
 |---|---|
 | 💬 **Chat** | A standard chat with the model picker inside the chat box and friendly model names ("Llama 3.3 70B", "Gemini 2.5 Flash"): streaming answers, Markdown, tables, code highlighting, the model's reasoning (when it shares it), edit and resend, regenerate, history with search, pin and rename, export to Markdown. |
-| 🌐 **Web: Auto** | Fresh facts without pressing anything. When a question needs up-to-date information (news, dates, prices, people in office, versions, results), JeeA! searches the web first, gives the results and today's date to the model, and shows numbered **Sources** under the answer. The 🌐 button in the chat box switches between **Auto**, **On** (every message) and **Off**. Works in Chat, Compare and Team. |
+| 🌐 **Web for every question** | Before every question in Chat, Compare, Team and Agent, JeeA! searches the web (recent research abstracts, Wikipedia, news lists, and full web search if the site owner adds a key) and gives the results and today's date to the model. Answers show **Sources** chips. The 🌐 button in the chat box switches between **On** (default), **Auto** (only when fresh facts seem needed) and **Off**. |
+| 📜 **Answer rules** | The site owner's answer rules (plain English, checked and cited sources, honesty, Checks lines, evidence judging) go to every model as system text, with a short note on how they work inside JeeA!. Edit, reset or switch them off in **Settings → Answer rules**. |
+| ➗ **Maths** | LaTeX formulas, boxed results and coloured citations display properly (KaTeX, loaded only when a message needs it). |
 | 🤖 **Agent** | Give a goal. The agent plans and uses tools step by step: Wikipedia search and reading, web pages, exact maths, a JavaScript sandbox, date and time, long-term memory, workspace files, creating web apps, and asking other models. Every step is shown and can be opened. |
 | ⏰ **24/7 agents** | Scheduled agents run on GitHub Actions in your repository, even when your computer is off, and save Markdown reports that the Agent page shows. |
 | 🆓 **Free models** | Works the moment the page opens: the shared Pollinations model needs no sign-up and no key. **Puter** adds hundreds of models (GPT, Claude, Gemini, Llama…) with a free Puter account. With the optional **JeeA Gateway**, the site owner can share free NVIDIA and other models with every visitor. Free models carry a green **Free** tag. |
@@ -34,7 +36,7 @@ Chat with many AI models in one beautiful app. Start free with no key, add your 
 
 <table>
 <tr>
-<td><img src="docs/screenshots/web.jpg" alt="Web: Auto searched the web by itself and shows numbered sources" /></td>
+<td><img src="docs/screenshots/rules.jpg" alt="An answer following the answer rules: coloured author-year citations, a boxed formula and research sources" /></td>
 <td><img src="docs/screenshots/web-compare.jpg" alt="Compare: one web search shared by every model" /></td>
 </tr>
 <tr>
@@ -82,18 +84,34 @@ No AI provider offers truly unlimited free use, and an API key placed in a publi
 2. Open the Worker, choose **Edit code**, replace everything with the contents of `proxy/jeea-gateway.js`, and **Deploy**.
 3. Open **Settings → Variables and Secrets → Add**. Add `NVIDIA_API_KEY` with type **Secret** (your key from build.nvidia.com). Optionally add `GROQ_API_KEY`, `GEMINI_API_KEY`, `CEREBRAS_API_KEY`, `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` as secrets, and `ALLOWED_ORIGINS` (type Text) = `https://<your-user>.github.io`. **Deploy**.
 4. *(Free, no extra key)* In the Worker's **Settings**, look for **Bindings** and add a **Workers AI** binding named `AI` (the dashboard wording may differ slightly; with Wrangler it is `"ai": { "binding": "AI" }` in the config file). This adds Cloudflare Workers AI models (Llama 3.3 70B, Llama 4 Scout, Mistral Small 3.1, QwQ 32B, DeepSeek R1 Distill, Qwen 2.5 Coder, GPT-OSS 120B), which use Cloudflare's free allowance of 10,000 Neurons per day ([Cloudflare pricing docs](https://github.com/cloudflare/cloudflare-docs/blob/production/src/content/docs/workers-ai/platform/pricing.mdx)).
-5. *(Optional, full web search)* Add the secret `TAVILY_API_KEY` (a key from tavily.com). JeeA!'s **Web: Auto** mode then uses full web search through `POST /v1/search`, cached for 10 minutes and limited to 6 searches per visitor per minute (`SEARCH_PER_MINUTE`). Without it, the app still searches Wikipedia on its own.
+5. *(Optional, full web search)* Add the secret `TAVILY_API_KEY` (a key from tavily.com). JeeA!'s web search then also uses full web search through `POST /v1/search`, cached for 10 minutes and limited to 6 searches per visitor per minute (`SEARCH_PER_MINUTE`). Without it, the app still searches Wikipedia on its own.
 6. Copy the Worker address (`https://jeea-gateway.<name>.workers.dev`) into `public/jeea.config.json` → `"gateway"`, and commit. After the site redeploys, every visitor sees **JeeA Free+** in the model picker.
 
 The visitors share your free limits, so for many users add more providers' keys or keep the per-minute limit low.
 
-## How the automatic web search works
+## How the web search works
 
-1. **Decide.** For each message, a small set of rules (`src/lib/web.ts`) looks for signs that the answer may have changed since the model was trained: words such as *latest, today, price, won, released, current, news*, a year such as *2026*, or a short factual question about a named person, place or product. Greetings, maths, code and writing tasks (poems, emails, translations) are not searched, unless they ask for news or the web.
-2. **Search.** It turns the question into search words (*"Who is the current prime minister of Bhutan?"* → *prime minister Bhutan*) and asks, in parallel: the gateway's web search (if the site owner set a Tavily key), Wikipedia article intros, and, for news questions, Wikipedia's *In the news* and the last two days of *Current events*. Wikipedia is called with `origin=*`, MediaWiki's anonymous cross-site mode, so no key or proxy is needed. The search stops after 8 seconds and a failed source is skipped.
-3. **Answer.** The model gets today's date, your time zone and the numbered results, and is told to cite them as [1], [2]. The answer shows **Sources** chips, and each [n] links to its source. Compare runs one search for all models; Team gives the same results to every role.
+1. **Decide.** With **On** (the default), every question is searched; only bare greetings such as "hi" or "thanks" are skipped. With **Auto**, a small set of rules (`src/lib/web.ts`) searches only when the answer may have changed since the model was trained (words such as *latest, today, price, won, released, current, news*, a year, or a short factual question about a named person or place). **Off** never searches.
+2. **Search.** The question becomes search words (*"Who is the current prime minister of Bhutan?"* → *prime minister Bhutan*). In parallel, JeeA! asks:
+   - **OpenAlex**, a free index of research papers: up to 3 works with abstracts from the last 2 years (5 if fewer than 2 are found), never retracted ones;
+   - **Wikipedia** article summaries, and for news questions its *In the news* and last two days of *Current events*;
+   - the gateway's **full web search**, if the site owner set a Tavily key.
+   OpenAlex and Wikipedia need no key and allow browser calls. The search stops after 9 seconds and a failed source is skipped.
+3. **Answer.** The model gets today's date, your time zone and up to 8 numbered results. Each result says what it is (scholarly work, web page or Wikipedia), its authors, date, journal, DOI and which part was shown (for example, *Abstract*). With the answer rules on, the model cites in the rules' format; with them off, it cites as [1], [2]. Compare runs one search for all models; Team gives the same results to every role; Agent gets them before its first step.
 
-**Limits.** Rules can guess wrong, so use **On** to force a search or **Off** to stop it. Wikipedia is not a news site: without the gateway search key, very recent or local news may be missing. Your search words are sent to Wikipedia (and to the gateway, if used). Free models with short context windows may ignore part of the results.
+**Limits.** Models only see the short text JeeA! found (an abstract or an extract), not full papers, so they cannot quote deeper sections. Without the gateway search key there is no general web search, so very recent or local news may be missing. Your search words are sent to OpenAlex and Wikipedia (and to the gateway, if used).
+
+## The answer rules
+
+The site owner's rules live in `src/rules/answer-rules.md`, word for word, and a short note in `src/rules/jeea-context.md` tells the models how to apply them inside JeeA!:
+- the only sources they have opened are the numbered web results;
+- Wikipedia results never count as evidence;
+- for research papers they saw only the abstract;
+- JeeA! shows Markdown and maths but no widgets.
+
+They are sent as system text to every model in Chat, Compare, Team and Agent (not CodeFrame, whose job is to write code).
+
+**Cost.** The rules add about 8,600 tokens to every request (rough estimate: 4 characters per token). Some free tiers allow fewer tokens per request or per minute, so a model may refuse; the error then says so, and you can pick another model or switch the rules off in Settings. Edit the rules in Settings (saved in your browser), or change the file in the repository to change the default for everyone.
 
 ## Agents
 
@@ -176,8 +194,11 @@ src/
   lib/            core logic
     providers.ts    provider catalog (3 no-key providers, 19 with keys)
     models.ts       friendly model names and Free detection
-    web.ts          automatic web search: when to search, Wikipedia/gateway search, prompt
-    webrun.ts       runs the search for Chat, Compare and Team (stoppable, logged)
+    web.ts          web search: when to search, OpenAlex/Wikipedia/gateway search, prompt
+    webrun.ts       runs the search for Chat, Compare, Team and Agent (stoppable, logged)
+    rules.ts        the answer rules sent to every model
+    math.ts         KaTeX maths, loaded on demand
+  rules/          the site owner's answer rules and the JeeA! note (Markdown)
     llm.ts          streaming clients: OpenAI-compatible + Anthropic SDK
     runner.ts       key rotation, retries, cooldowns, fallback, logging
     team.ts         Pipeline / Mixture / Debate planner and presets

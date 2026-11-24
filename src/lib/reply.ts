@@ -4,6 +4,14 @@ import { useData } from './data';
 import { runChat, startJob, endJob } from './runner';
 import { makeFlusher } from './stream';
 import { isAbort } from './utils';
+import { rulesText, TOO_LONG } from './rules';
+import { useSettings } from './settings';
+
+/** Extra advice when a request was probably too long for the model. */
+export function tooLongHint(msg: string): string {
+  if (!TOO_LONG.test(msg) || !useSettings.getState().answerRules?.enabled || !rulesText()) return '';
+  return ' Tip: the answer rules add about 8,600 tokens to every request, which can be more than this model allows. Try a model with a larger limit, or switch the rules off in Settings → Answer rules.';
+}
 
 /**
  * Stream one model reply into an existing (placeholder) message inside any
@@ -62,7 +70,7 @@ export async function streamReply(opts: {
     f.finish();
     patch((m) => {
       m.status = isAbort(e) ? 'stopped' : 'error';
-      m.error = isAbort(e) ? undefined : (e as Error).message;
+      m.error = isAbort(e) ? undefined : `${(e as Error).message}${tooLongHint((e as Error).message)}`;
       m.statusText = undefined;
     });
     return null;

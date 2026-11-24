@@ -12,6 +12,8 @@ import { downloadText, fmtMs, fmtNum, titleFrom, uid } from '../lib/utils';
 import { TopBar } from '../components/Shell';
 import { ModelPicker, ModelBadge } from '../components/ModelPicker';
 import { Markdown, Reasoning, TypingDots, MessageItem } from '../components/Message';
+import { SourcesBar } from '../components/Web';
+import { linkCitations } from '../lib/web';
 import { Composer } from '../components/Composer';
 import { Popover } from '../components/Popover';
 import { useAutoScroll } from '../components/hooks';
@@ -97,7 +99,8 @@ function AgentRun({ m, files }: { m: Message; files: Record<string, string> }) {
         )}
         <Reasoning text={m.reasoning ?? ''} streaming={streaming && !live} />
         {m.statusText && <div className="status-line"><span className="pulse-dot" />{m.statusText}</div>}
-        {live ? <Markdown text={live} /> : streaming ? <TypingDots /> : null}
+        {live ? <Markdown text={linkCitations(live, m.sources)} /> : streaming && !m.statusText ? <TypingDots /> : null}
+        {(m.sources || (!streaming && m.web?.note)) && <SourcesBar sources={m.sources} web={m.web} />}
         {m.status === 'error' && <div className="msg-error"><X size={15} /><span>{m.error}</span></div>}
         {m.status === 'stopped' && <div className="muted xs">Stopped.</div>}
         {m.status === 'done' && m.meta && (

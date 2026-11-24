@@ -1,8 +1,8 @@
 {
   "name": "jeea",
   "private": true,
-  "version": "1.4.0",
-  "description": "JeeA! \u2014 one beautiful chat for many AI models: free models, your own API keys, side-by-side compare, multi-role teams and a live CodeFrame.",
+  "version": "1.5.0",
+  "description": "JeeA! — one beautiful chat for many AI models: free models, your own API keys, side-by-side compare, multi-role teams and a live CodeFrame.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -23,6 +23,7 @@
     "highlight.js": "^11.12.0",
     "idb-keyval": "^6.3.0",
     "immer": "^11.2.10",
+    "katex": "^0.19.1",
     "lucide-react": "^1.77.0",
     "marked": "^18.2.1",
     "react": "^19.3.1",

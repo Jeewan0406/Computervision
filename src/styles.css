@@ -862,3 +862,14 @@ label.chip { cursor: pointer; }
   .web-toggle { padding: 0 8px; }
   .source-text { max-width: 60vw; }
 }
+
+/* Answer rules editor (v1.5) */
+.rules-editor { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.rules-editor textarea {
+  width: 100%; min-height: 320px; resize: vertical; padding: 12px; border-radius: 10px; font: 12.5px/1.5 var(--mono);
+  color: var(--text); background: var(--input); border: 1px solid var(--border-strong);
+}
+.md .math-block { margin: 10px 0; overflow-x: auto; overflow-y: hidden; }
+.md .katex-display { margin: 0.4em 0; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+.md .katex { font-size: 1.08em; }
+.md a .katex { color: inherit; }

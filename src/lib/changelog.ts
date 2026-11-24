@@ -1,5 +1,5 @@
 /** In-app release log ("What's new"). Mirrors CHANGELOG.md. */
-export const APP_VERSION = '1.4.0';
+export const APP_VERSION = '1.5.0';
 
 export interface Release {
   version: string;
@@ -9,6 +9,18 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
+  {
+    version: '1.5.0',
+    date: '2026-11-24',
+    title: 'Your answer rules, and the web for every question',
+    items: [
+      { tag: 'new', feature: 'Answer rules', text: 'The site owner\'s answer rules (plain English, checked and cited sources, honesty, Checks lines and more) now go to every model in Chat, Compare, Team and Agent. A short note tells the models how the rules work inside JeeA!: they can only cite the web results they were given, Wikipedia does not count as evidence, and there are no widgets. Switch them off or edit them in Settings → Answer rules.' },
+      { tag: 'new', feature: 'Web for every question', text: 'Web search is now On by default and runs before every question in Chat, Compare, Team and Agent (greetings such as "hi" are skipped). Auto and Off are still on the 🌐 button.' },
+      { tag: 'new', feature: 'Research sources', text: 'Recent scholarly works with their abstracts from OpenAlex (last 2 years, widened to 5 when too few), shown with authors, year and journal. Each result is labelled with its type, so models can judge it.' },
+      { tag: 'new', feature: 'Maths', text: 'Answers now show LaTeX maths, boxed formulas and coloured citations ($...$, $$...$$, \\textcolor). The maths library loads only when a message needs it.' },
+      { tag: 'improved', feature: 'Clear errors', text: 'When a model refuses a request because it is too long, the error now explains that the answer rules add about 8,600 tokens and how to fix it.' },
+    ],
+  },
   {
     version: '1.4.0',
     date: '2026-11-22',

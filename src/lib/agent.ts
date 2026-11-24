@@ -9,6 +9,9 @@ import { makeFlusher } from './stream';
 import { log } from './logs';
 import { splitThink } from './text';
 import { isAbort, uid } from './utils';
+import { prepareWeb, joinSystem } from './webrun';
+import { rulesText } from './rules';
+import { tooLongHint } from './reply';
 
 /**
  * Agent loop: ask the model, run the tools it requests, give it the results,
@@ -51,7 +54,26 @@ export async function runAgent(sid: string, asstId: string) {
   const toolNames = tools.map((t) => t.name);
   const history = s0.messages.filter((m) => m.id !== asstId && (m.role === 'user' || (m.status === 'done' && m.content.trim())));
   const convo = history.map((m) => ({ role: m.role as 'user' | 'assistant', content: m.role === 'assistant' ? splitThink(m.content).answer : m.content }));
-  const system = `${AGENT_SYSTEM}\nToday is ${new Date().toDateString()}.${toolNames.includes('ask_model') ? `\nModels you can ask with ask_model: ${delegateIds().join(', ')}.` : ''}`;
+  // Web search before the first step (same setting as Chat), shown as Sources.
+  const users = history.filter((m) => m.role === 'user');
+  const w = await prepareWeb(users[users.length - 1]?.content ?? '', {
+    jobId: `${sid}:${asstId}`,
+    feature: 'agent',
+    previous: users[users.length - 2]?.content,
+    onStart: (info) => patchMsg((m) => {
+      m.web = info;
+      m.statusText = `Searching the web for “${info.query}”…`;
+    }),
+  });
+  patchMsg((m) => {
+    m.web = w.web;
+    m.sources = w.sources;
+    m.statusText = undefined;
+    if (w.aborted) m.status = 'stopped';
+  });
+  if (w.aborted) return;
+  const base = `${AGENT_SYSTEM}\nToday is ${new Date().toDateString()}.${toolNames.includes('ask_model') ? `\nModels you can ask with ask_model: ${delegateIds().join(', ')}.` : ''}`;
+  const system = joinSystem(base, rulesText(), w.prompt);
 
   let mode: Mode = provider.kind === 'anthropic' ? 'anthropic' : provider.kind === 'puter' || provider.nativeTools === false ? 'text' : 'openai';
   if (!tools.length) mode = provider.kind === 'anthropic' ? 'anthropic' : 'text';
@@ -212,7 +234,7 @@ export async function runAgent(sid: string, asstId: string) {
   } catch (e) {
     patchMsg((m) => {
       m.status = isAbort(e) ? 'stopped' : 'error';
-      m.error = isAbort(e) ? undefined : (e as Error).message;
+      m.error = isAbort(e) ? undefined : `${(e as Error).message}${tooLongHint((e as Error).message)}`;
       m.statusText = undefined;
       m.meta = { ...meta, totalMs: performance.now() - t0, attempts: stepsUsed };
     });

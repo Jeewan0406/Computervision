@@ -7,6 +7,7 @@ import { useUI } from '../lib/ui';
 import { stopJobs } from '../lib/runner';
 import { streamReply } from '../lib/reply';
 import { prepareWeb, joinSystem, type WebResult } from '../lib/webrun';
+import { rulesText } from '../lib/rules';
 import { splitThink } from '../lib/text';
 import { fmtMs, titleFrom, uid } from '../lib/utils';
 import { TopBar, ParamsButton } from '../components/Shell';
@@ -77,7 +78,7 @@ export function CompareView() {
       jobId: `${sid}:${laneId}:${asstId}`,
       locate: (x) => (x as CompareSession).lanes.find((l) => l.id === laneId)?.messages.find((m) => m.id === asstId),
       ref: lane.model,
-      messages: toApiMessages(joinSystem(s.system, w.prompt), history),
+      messages: toApiMessages(joinSystem(rulesText(), s.system, w.prompt), history),
       params: s.params,
       feature: 'compare',
     });

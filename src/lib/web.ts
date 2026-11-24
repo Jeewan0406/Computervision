@@ -3,13 +3,18 @@
 // Pure logic plus network calls with an injectable fetch, so it can be unit
 // tested in Node. No runtime imports on purpose (Node test runner).
 //
-// Sources, in order:
-//  1. The site owner's JeeA Gateway `/v1/search` (Tavily web search with the
+// Sources, in the order they are shown:
+//  1. Wikipedia "In the news" and "Current events", for news-like questions.
+//  2. The site owner's JeeA Gateway `/v1/search` (Tavily web search with the
 //     owner's key), when the site has a gateway and the owner set a key.
-//  2. Wikipedia (Action API, `origin=*` = anonymous CORS): article intros,
-//     plus "In the news" and "Current events" for news-like questions.
+//  3. OpenAlex: recent scholarly works with abstracts (no key; the API sends
+//     Access-Control-Allow-Origin: *), last 2 years, widened to 5 if too few.
+//  4. Wikipedia article intros (Action API, `origin=*` = anonymous CORS).
 
 export type WebMode = 'auto' | 'on' | 'off';
+
+/** What a result is, so the model can judge it ("Wikipedia does not count"). */
+export type SourceKind = 'scholarly' | 'web' | 'wikipedia' | 'wiki-news';
 
 export interface WebSource {
   n: number;
@@ -19,6 +24,15 @@ export interface WebSource {
   site: string;
   /** ISO date of publication or last edit, when known. */
   date?: string;
+  kind?: SourceKind;
+  /** Which part of the source the snippet is, e.g. "Abstract". */
+  part?: string;
+  authors?: string[];
+  /** Journal, repository or publisher. */
+  venue?: string;
+  doi?: string;
+  /** e.g. "article", "review", "preprint", "book-chapter". */
+  workType?: string;
 }
 
 export interface WebDecision {
@@ -66,9 +80,9 @@ export function webDecision(raw: string, mode: WebMode = 'auto'): WebDecision {
   const news = /\b(news|headlines?|breaking|what('?s| is) happening|happen(ed|ing) (today|this week|recently)|latest (events|updates))\b/i.test(text);
   if (mode === 'off') return { search: false, news: false, reason: 'web search is off' };
   if (!text.trim()) return { search: false, news: false, reason: 'empty' };
-  if (mode === 'on') return { search: true, news, reason: 'web search is always on' };
+  if (CHAT.test(text.trim())) return { search: false, news: false, reason: 'greeting, not a question' };
+  if (mode === 'on') return { search: true, news, reason: 'web search is on for every question' };
 
-  if (CHAT.test(text.trim())) return { search: false, news: false, reason: 'small talk' };
   if (ASKED.test(text) && !CODE.test(text)) return { search: true, news, reason: 'you asked for the web' };
   const strong = STRONG.test(text);
   if (CODE.test(raw) && !strong) return { search: false, news: false, reason: 'code question' };
@@ -184,6 +198,8 @@ export async function wikipediaSearch(q: string, fetchFn: FetchFn, signal: Abort
       snippet: clip(p.extract!.replace(/\s+/g, ' ').trim(), 900),
       site: 'Wikipedia',
       date: p.touched?.slice(0, 10),
+      kind: 'wikipedia' as const,
+      part: 'Introduction (summary at the top of the article)',
     }));
 }
 
@@ -229,6 +245,8 @@ export async function wikipediaNews(q: string, fetchFn: FetchFn, signal: AbortSi
       snippet: clip(items.slice(0, 6).map((t) => `• ${t}`).join('\n'), 1100),
       site: 'Wikipedia',
       date: p.date.toISOString().slice(0, 10),
+      kind: 'wiki-news',
+      part: 'News list items',
     });
   });
   return out;
@@ -251,11 +269,75 @@ export async function gatewaySearch(gateway: string, q: string, news: boolean, f
         snippet: clip(r.content!.replace(/\s+/g, ' ').trim(), 900),
         site: hostOf(r.url!),
         date: r.published_date ? isoDate(r.published_date) : undefined,
+        kind: 'web' as const,
+        part: 'Extract from the page',
       }));
   } catch (e) {
     if ((e as { status?: number }).status && [404, 405, 501].includes((e as { status: number }).status)) return null;
     throw e;
   }
+}
+
+/** Plain-text abstract from OpenAlex's inverted index (word -> positions). */
+export function abstractFromIndex(inv: Record<string, number[]> | null | undefined): string {
+  if (!inv) return '';
+  const words: string[] = [];
+  for (const [w, positions] of Object.entries(inv)) for (const p of positions) words[p] = w;
+  return words.filter((w) => w !== undefined).join(' ').replace(/\s+/g, ' ').trim();
+}
+
+interface OAWork {
+  id?: string;
+  doi?: string | null;
+  display_name?: string | null;
+  publication_date?: string | null;
+  type?: string | null;
+  primary_location?: { landing_page_url?: string | null; version?: string | null; source?: { display_name?: string | null } | null } | null;
+  authorships?: { author?: { display_name?: string | null } | null }[] | null;
+  abstract_inverted_index?: Record<string, number[]> | null;
+}
+
+/** Recent scholarly works (with abstracts) from OpenAlex. Last 2 years; widened to 5 when fewer than 2 are found. */
+export async function openAlexSearch(q: string, fetchFn: FetchFn, signal: AbortSignal, now = new Date(), limit = 3): Promise<WebSource[]> {
+  const fields = 'id,doi,display_name,publication_date,type,primary_location,authorships,abstract_inverted_index';
+  const get = async (years: number) => {
+    const from = new Date(now.getTime());
+    from.setUTCFullYear(from.getUTCFullYear() - years);
+    const url =
+      `https://api.openalex.org/works?search=${encodeURIComponent(q)}` +
+      `&filter=from_publication_date:${from.toISOString().slice(0, 10)},has_abstract:true,is_retracted:false` +
+      `&per-page=${limit}&select=${fields}`;
+    const data = (await getJson(fetchFn, url, signal)) as { results?: OAWork[] };
+    return data.results ?? [];
+  };
+  let works = await get(2);
+  if (works.length < 2) works = await get(5);
+  const out: WebSource[] = [];
+  for (const w of works) {
+    const abstract = abstractFromIndex(w.abstract_inverted_index);
+    const title = (w.display_name ?? '').trim();
+    if (!title || abstract.length < 80) continue;
+    const doi = w.doi ? w.doi.replace(/^https?:\/\/doi\.org\//i, '') : undefined;
+    const url = w.doi || w.primary_location?.landing_page_url || w.id || '';
+    if (!url) continue;
+    const venue = w.primary_location?.source?.display_name ?? undefined;
+    const preprint = w.primary_location?.version === 'submittedVersion';
+    out.push({
+      n: 0,
+      title,
+      url,
+      snippet: clip(abstract, 1000),
+      site: venue || hostOf(url),
+      date: w.publication_date ?? undefined,
+      kind: 'scholarly',
+      part: 'Abstract',
+      authors: (w.authorships ?? []).map((a) => a.author?.display_name ?? '').filter(Boolean).slice(0, 20),
+      venue,
+      doi,
+      workType: preprint ? 'preprint' : w.type ?? undefined,
+    });
+  }
+  return out;
 }
 
 export function hostOf(url: string): string {
@@ -301,9 +383,11 @@ export async function webSearch(opts: {
   timeoutMs?: number;
   now?: Date;
   max?: number;
+  /** Also search scholarly works (OpenAlex). Default true. */
+  scholarly?: boolean;
 }): Promise<{ sources: WebSource[]; errors: string[] }> {
   const fetchFn = opts.fetchFn ?? ((u, i) => fetch(u, i));
-  const { signal, done } = timeoutSignal(opts.timeoutMs ?? 8000, opts.signal);
+  const { signal, done } = timeoutSignal(opts.timeoutMs ?? 9000, opts.signal);
   const errors: string[] = [];
   const useGateway = !!opts.gateway && !gatewaySearchOff;
   // Listed in the order results are shown: news first (freshest), then web
@@ -318,7 +402,8 @@ export async function webSearch(opts: {
       }),
     );
   }
-  tasks.push(wikipediaSearch(opts.query, fetchFn, signal, useGateway ? 2 : 3));
+  if (opts.scholarly !== false) tasks.push(openAlexSearch(opts.query, fetchFn, signal, opts.now));
+  tasks.push(wikipediaSearch(opts.query, fetchFn, signal, 2));
   const settled = await Promise.allSettled(tasks);
   done();
   if (opts.signal?.aborted) throw opts.signal.reason ?? new DOMException('Aborted', 'AbortError');
@@ -336,7 +421,7 @@ export async function webSearch(opts: {
       all.push(s);
     }
   }
-  const sources = all.slice(0, opts.max ?? 6).map((s, i) => ({ ...s, n: i + 1 }));
+  const sources = all.slice(0, opts.max ?? 8).map((s, i) => ({ ...s, n: i + 1 }));
   return { sources, errors };
 }
 
@@ -363,25 +448,47 @@ export function dateLine(now = new Date(), timeZone?: string): string {
   return `Today is ${s.replace(' at ', ', ')}${tz ? ` (${tz})` : ''}.`;
 }
 
-/** System message with the date and numbered web results. */
-export function webPrompt(query: string, sources: WebSource[], now = new Date(), timeZone?: string): string {
+const KIND_LABEL: Record<SourceKind, string> = {
+  scholarly: 'scholarly work',
+  web: 'web page',
+  wikipedia: 'Wikipedia article (does not count as evidence under strict source rules)',
+  'wiki-news': 'Wikipedia news list (does not count as evidence under strict source rules)',
+};
+
+/** One numbered result, with everything a careful answer needs to cite it. */
+export function describeSource(s: WebSource): string {
+  const lines = [`[${s.n}] ${s.title}`];
+  const kind = s.kind ? KIND_LABEL[s.kind] : 'web page';
+  lines.push(`Type: ${kind}${s.workType ? ` (${s.workType})` : ''}`);
+  if (s.authors?.length) lines.push(`Authors: ${s.authors.join('; ')}`);
+  const where = s.venue || s.site;
+  if (s.date || where) lines.push(`${s.kind === 'wikipedia' ? 'Last edited' : 'Published'}: ${s.date ?? 'date not given'}${where ? ` · ${where}` : ''}`);
+  if (s.doi) lines.push(`DOI: ${s.doi}`);
+  lines.push(`URL: ${s.url}`);
+  lines.push(`Text shown (${s.part ?? 'extract'}, the only part you have seen): ${s.snippet}`);
+  return lines.join('\n');
+}
+
+/** System message with the date and numbered web results.
+ * `rules`: the site owner's answer rules are on, so cite in their format. */
+export function webPrompt(query: string, sources: WebSource[], now = new Date(), timeZone?: string, opts: { rules?: boolean } = {}): string {
   const head = dateLine(now, timeZone);
   if (!sources.length) {
-    return `${head}\nA web search for "${query}" found nothing useful. If the question is about recent events, say that your information may be out of date.`;
+    return `${head}\nWeb search results: a search for "${query}" found nothing useful (or could not be reached). Treat every outside fact as unverified, and say that your information may be out of date.`;
   }
-  const list = sources
-    .map((s) => `[${s.n}] ${s.title} (${s.site}${s.date ? `, ${s.date}` : ''})\n${s.url}\n${s.snippet}`)
-    .join('\n\n');
+  const cite = opts.rules
+    ? 'Cite the results you use in the format the answer rules require, using each result\'s URL exactly. Do not cite them as bare numbers. JeeA! also lists them as chips under your answer.'
+    : 'Cite the results you use with their number in square brackets, like [1] or [2][3], right after the sentence.';
   return [
     head,
-    `Web search results for "${query}", fetched just now:`,
+    `Web search results for "${query}", fetched just now (${sources.length}):`,
     '',
-    list,
+    sources.map(describeSource).join('\n\n'),
     '',
-    'How to use them: these results are newer than your training data, so prefer them for facts that change over time (dates, people in office, prices, scores, versions, news).',
-    'Cite the results you use with their number in square brackets, like [1] or [2][3], right after the sentence.',
-    'If results disagree, say so and prefer the newest. If they do not answer the question, say that briefly and answer from your own knowledge, noting it may be out of date.',
-    'Never invent a source or a number in brackets that is not listed above.',
+    'How to use them: these results are newer than your training data, so prefer them for facts that change over time (dates, people in office, prices, scores, versions, news, recent research).',
+    cite,
+    'If results disagree, say so and prefer the newest strong source. If they do not answer the question, say that briefly, then answer from your own knowledge and mark it as unverified and possibly out of date.',
+    'Never invent a source, author, date, DOI or link that is not listed above.',
   ].join('\n');
 }
 

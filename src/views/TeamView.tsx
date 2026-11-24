@@ -7,6 +7,7 @@ import { useUI } from '../lib/ui';
 import { stopJobs } from '../lib/runner';
 import { streamReply } from '../lib/reply';
 import { prepareWeb } from '../lib/webrun';
+import { rulesText } from '../lib/rules';
 import { linkCitations } from '../lib/web';
 import { MODE_INFO, TEAM_PRESETS, newStep, planTeam, presetRoles } from '../lib/team';
 import { splitThink } from '../lib/text';
@@ -52,7 +53,7 @@ async function executeRun(sid: string, runId: string, input: string) {
   }, false);
   if (w.aborted) return;
   const s = useData.getState().sessions[sid] as TeamSession;
-  const waves = planTeam(s, input, w.prompt);
+  const waves = planTeam(s, input, w.prompt, rulesText());
   const done: { step: TeamStep; content: string }[] = [];
   let failed = false;
 

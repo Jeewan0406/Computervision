@@ -93,8 +93,9 @@ export const MODE_INFO: Record<TeamMode, { label: string; hint: string }> = {
   debate: { label: 'Debate', hint: 'All but the last argue in rounds; the last judges.' },
 };
 
-function systemFor(role: TeamRole) {
-  return `You are "${role.name}", one member of a JeeA! AI team working on a shared task.\nYour job: ${role.instructions}\nStay in your role. Be clear and useful. Use Markdown.`;
+function roleSystem(role: TeamRole, rules = '') {
+  const base = `You are "${role.name}", one member of a JeeA! AI team working on a shared task.\nYour job: ${role.instructions}\nStay in your role. Be clear and useful. Use Markdown.`;
+  return rules.trim() ? `${rules.trim()}\n\n# Your role in this team\n${base}` : base;
 }
 
 const block = (s: { emoji: string; roleName: string; round?: number }, text: string) =>
@@ -108,8 +109,9 @@ export interface PlannedStep {
 }
 
 /** Turn a team into ordered "waves"; steps in the same wave run in parallel. */
-export function planTeam(session: Pick<TeamSession, 'mode' | 'rounds' | 'roles'>, input: string, background = ''): PlannedStep[][] {
+export function planTeam(session: Pick<TeamSession, 'mode' | 'rounds' | 'roles'>, input: string, background = '', rules = ''): PlannedStep[][] {
   const roles = session.roles;
+  const systemFor = (role: TeamRole) => roleSystem(role, rules);
   // Background = today's date and any web results, shared by every role.
   const task = `## Task\n${input}${background.trim() ? `\n\n## Background (from JeeA!)\n${background.trim()}` : ''}`;
   if (!roles.length) return [];

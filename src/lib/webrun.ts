@@ -54,14 +54,16 @@ export async function prepareWeb(
       message: `Web search "${query}" (${d.reason}): ${sources.length} result${sources.length === 1 ? '' : 's'} in ${ms} ms${errors.length ? `; failed: ${errors.join('; ')}` : ''}`,
     });
     const note = sources.length ? undefined : errors.length ? 'the search could not be reached' : 'no useful results';
-    return { prompt: webPrompt(query, sources), web: { ...info, note }, sources: sources.length ? sources : undefined };
+    return { prompt: webPrompt(query, sources, undefined, undefined, { rules: rulesOn() }), web: { ...info, note }, sources: sources.length ? sources : undefined };
   } catch (e) {
     if (isAbort(e) || ctrl.signal.aborted) return { prompt: '', web: info, aborted: true };
-    return { prompt: dateLine(), web: { ...info, note: 'the search failed' } };
+    return { prompt: webPrompt(query, [], undefined, undefined, { rules: rulesOn() }), web: { ...info, note: 'the search failed' } };
   } finally {
     endJob(`${opts.jobId}:web`);
   }
 }
 
-/** The user's system prompt plus the web/date text. */
-export const joinSystem = (system: string, web: string) => [system.trim(), web].filter(Boolean).join('\n\n');
+const rulesOn = () => !!useSettings.getState().answerRules?.enabled;
+
+/** Join system texts (answer rules, the chat's own system prompt, web/date text), skipping empty ones. */
+export const joinSystem = (...parts: (string | undefined)[]) => parts.map((p) => (p ?? '').trim()).filter(Boolean).join('\n\n');

@@ -1,9 +1,10 @@
-import { useRef, type ReactNode } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { CheckCircle2, Info, Trophy, X, XCircle } from 'lucide-react';
 import { useUI } from '../lib/ui';
 import { useSettings, type Accent, type Theme, modelKey, allProviders, gatewayInfo } from '../lib/settings';
 import type { WebMode } from '../lib/web';
 import { WEB_HELP } from './Web';
+import { DEFAULT_RULES, roughTokens, rulesText } from '../lib/rules';
 import { useData } from '../lib/data';
 import { useLogs } from '../lib/logs';
 import { CHANGELOG, APP_VERSION } from '../lib/changelog';
@@ -84,18 +85,19 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
         <div className="set-row">
           <span>Look things up on the web</span>
           <div className="seg">
-            {([['auto', 'Auto'], ['on', 'Always'], ['off', 'Off']] as [WebMode, string][]).map(([id, label]) => (
+            {([['on', 'Every question'], ['auto', 'Auto'], ['off', 'Off']] as [WebMode, string][]).map(([id, label]) => (
               <button key={id} className={s.webMode === id ? 'active' : ''} onClick={() => s.set({ webMode: id })}>{label}</button>
             ))}
           </div>
         </div>
         <p className="muted sm">{WEB_HELP[s.webMode].split('. Click')[0]}.</p>
         <p className="muted sm">
-          Sources: Wikipedia articles, plus Wikipedia's "In the news" and "Current events" for news questions (free, no key).
+          Sources: recent scholarly works with abstracts (OpenAlex, last 2 years, widened to 5), Wikipedia articles, and Wikipedia's "In the news" and "Current events" for news questions (free, no key).
           {gatewayInfo() ? ' This site\'s gateway can also add full web search, if its owner set a search key.' : ' A site owner can add full web search (Tavily) through the JeeA Gateway.'}
           {' '}Answers show numbered sources you can open. Your question words are sent to these services.
         </p>
       </section>
+      <RulesSection />
       <section className="set-section">
         <h3>Your data</h3>
         <p className="muted sm">Everything is stored only in this browser. Export a backup before clearing browser data.</p>
@@ -155,6 +157,44 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
         </div>
       </section>
     </Modal>
+  );
+}
+
+/** The site owner's answer rules: on/off, edit, reset. */
+function RulesSection() {
+  const rules = useSettings((s) => s.answerRules);
+  const set = useSettings((s) => s.set);
+  const toast = useUI((u) => u.toast);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(rules.text ?? DEFAULT_RULES);
+  const size = roughTokens(rulesText() || (rules.text ?? DEFAULT_RULES));
+  return (
+    <section className="set-section">
+      <h3>Answer rules</h3>
+      <label className="set-row">
+        <span>Send these rules to every model <span className="muted xs">(Chat, Compare, Team, Agent)</span></span>
+        <input type="checkbox" className="switch" checked={rules.enabled} onChange={(e) => set({ answerRules: { ...rules, enabled: e.target.checked } })} />
+      </label>
+      <p className="muted sm">
+        {rules.text == null ? 'Using the site owner\'s rules' : 'Using your edited rules'}: plain English, checked sources from the web results, citations, Checks lines and more.
+        {' '}They add about <b>{size.toLocaleString()} tokens</b> to every request, so models with small free limits may refuse; switch the rules off if that happens.
+      </p>
+      <div className="row gap-8 wrap">
+        <button className="btn ghost sm" onClick={() => { setDraft(rules.text ?? DEFAULT_RULES); setEditing((o) => !o); }}>{editing ? 'Close editor' : 'View or edit the rules'}</button>
+        {rules.text != null && (
+          <button className="btn ghost sm" onClick={() => { set({ answerRules: { ...rules, text: null } }); setDraft(DEFAULT_RULES); toast('Rules reset to the site owner\'s version', 'success'); }}>Reset to default</button>
+        )}
+      </div>
+      {editing && (
+        <div className="rules-editor">
+          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} spellCheck={false} aria-label="Answer rules" />
+          <div className="row gap-8 end">
+            <span className="muted xs">≈ {roughTokens(draft).toLocaleString()} tokens</span>
+            <button className="btn primary sm" onClick={() => { set({ answerRules: { ...rules, text: draft.trim() === DEFAULT_RULES ? null : draft } }); setEditing(false); toast('Answer rules saved', 'success'); }}>Save rules</button>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 

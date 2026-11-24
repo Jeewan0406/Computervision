@@ -1,5 +1,6 @@
 import { Marked, type Tokens } from 'marked';
 import DOMPurify from 'dompurify';
+import { mathReady, renderTex } from './math';
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -59,6 +60,52 @@ md.use({
   },
 });
 
+// Maths: $$...$$ or \[...\] as a block; $...$ or \(...\) inline. The inline
+// rule follows Pandoc so prices like "$5 and $10" are not taken as maths.
+const tex = (text: string, display: boolean, raw: string) => renderTex(text, display) ?? escapeHtml(raw);
+md.use({
+  extensions: [
+    {
+      name: 'mathBlock',
+      level: 'block',
+      // Only at the start of a line: "\[" inside a sentence is an escaped
+      // bracket (e.g. citation links like [\[1\]](url)), not maths.
+      start(src: string) {
+        const m = /(?:^|\n)[ ]{0,3}(?=\$\$|\\\[)/.exec(src);
+        return m ? m.index + m[0].length : undefined;
+      },
+      tokenizer(src: string) {
+        const m = /^[ ]{0,3}(?:\$\$([\s\S]+?)\$\$|\\\[([\s\S]+?)\\\])[ \t]*(?:\n+|$)/.exec(src);
+        if (m) return { type: 'mathBlock', raw: m[0], text: (m[1] ?? m[2]).trim(), src: m[0].trim() };
+        return undefined;
+      },
+      renderer(t: Tokens.Generic) {
+        return `<div class="math-block">${tex(t.text, true, t.src)}</div>\n`;
+      },
+    },
+    {
+      name: 'mathInline',
+      level: 'inline',
+      start(src: string) {
+        const i = src.search(/\$|\\\(/);
+        return i < 0 ? undefined : i;
+      },
+      tokenizer(src: string) {
+        let m = /^\$\$([^$]+?)\$\$/.exec(src);
+        if (m) return { type: 'mathInline', raw: m[0], text: m[1].trim(), display: true };
+        m = /^\$(?![\s$])((?:\\.|[^\\\n$])+?)(?<![\s\\])\$(?![\d$])/.exec(src);
+        if (m) return { type: 'mathInline', raw: m[0], text: m[1], display: false };
+        m = /^\\\(([\s\S]+?)\\\)/.exec(src);
+        if (m) return { type: 'mathInline', raw: m[0], text: m[1], display: false };
+        return undefined;
+      },
+      renderer(t: Tokens.Generic) {
+        return tex(t.text, !!t.display, t.raw);
+      },
+    },
+  ],
+});
+
 DOMPurify.addHook('afterSanitizeAttributes', (node) => {
   if (node.tagName === 'A') {
     node.setAttribute('target', '_blank');
@@ -70,14 +117,15 @@ const cache = new Map<string, string>();
 
 /** Markdown → safe HTML. Model output is untrusted, so it is always sanitized. */
 export function renderMarkdown(src: string): string {
-  const hit = cache.get(src);
+  const key = `${mathReady() ? 1 : 0}${src}`;
+  const hit = cache.get(key);
   if (hit !== undefined) return hit;
   const html = DOMPurify.sanitize(md.parse(src, { async: false }) as string, {
     ADD_ATTR: ['target', 'data-act', 'data-lang'],
     FORBID_TAGS: ['style', 'form', 'input', 'iframe'],
   });
   if (cache.size > 400) cache.clear();
-  cache.set(src, html);
+  cache.set(key, html);
   return html;
 }
 

@@ -2,12 +2,12 @@ import { Globe } from 'lucide-react';
 import { useSettings } from '../lib/settings';
 import type { WebMode, WebSource } from '../lib/web';
 
-const NEXT: Record<WebMode, WebMode> = { auto: 'on', on: 'off', off: 'auto' };
+const NEXT: Record<WebMode, WebMode> = { on: 'auto', auto: 'off', off: 'on' };
 const LABEL: Record<WebMode, string> = { auto: 'Auto', on: 'On', off: 'Off' };
 export const WEB_HELP: Record<WebMode, string> = {
-  auto: 'Web: Auto. JeeA! searches the web by itself when a question needs fresh facts (news, dates, prices, people, versions). Click to search for every message.',
-  on: 'Web: On. Every message searches the web first. Click to turn web search off.',
-  off: 'Web: Off. Answers use only what the model already knows. Click for Auto.',
+  on: 'Web: On. Every question searches the web first, so answers use the latest information (greetings such as "hi" are skipped). Click for Auto.',
+  auto: 'Web: Auto. JeeA! searches only when a question seems to need fresh facts (news, dates, prices, people, versions). Click to turn web search off.',
+  off: 'Web: Off. Answers use only what the model already knows, which may be out of date. Click to search for every question.',
 };
 
 /** Small "🌐 Auto / On / Off" button for the chat box. */
@@ -31,6 +31,11 @@ export function WebToggle() {
 const chipText = (s: WebSource) => {
   const t = s.title.replace(/^Wikipedia: /, '');
   const short = t.length > 30 ? `${t.slice(0, 29)}…` : t;
+  if (s.kind === 'scholarly') {
+    const first = s.authors?.[0]?.split(/\s+/).pop() ?? s.site;
+    const more = (s.authors?.length ?? 0) > 1 ? ' et al.' : '';
+    return `📄 ${first}${more} ${s.date?.slice(0, 4) ?? ''} · ${short}`;
+  }
   return s.site === 'Wikipedia' ? `Wikipedia · ${short}` : `${s.site} · ${short}`;
 };
 
