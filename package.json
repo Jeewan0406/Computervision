@@ -9,7 +9,7 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --no-warnings --test tests/logic.test.ts tests/agent.test.ts tests/models.test.ts tests/web.test.ts tests/instructions.test.ts tests/extract.test.ts tests/v19.test.ts tests/news.test.mjs tests/gateway.test.mjs"
+    "test": "node --experimental-strip-types --no-warnings --test tests/logic.test.ts tests/agent.test.ts tests/models.test.ts tests/web.test.ts tests/instructions.test.ts tests/extract.test.ts tests/v19.test.ts tests/router.test.ts tests/news.test.mjs tests/gateway.test.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.12.0",

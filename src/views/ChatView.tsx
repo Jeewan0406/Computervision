@@ -1,3 +1,4 @@
+import { isAuto } from '../lib/router';
 import { useState } from 'react';
 import { Bot, Code2, Columns3, KeyRound, Users } from 'lucide-react';
 import type { ChatSession, ImageAtt, Message, ModelRef, Session } from '../lib/types';
@@ -115,12 +116,15 @@ async function ask(sessionId: string) {
   // Max: a second pass. The model checks its first answer as a strict
   // reviewer and writes the improved final answer in its place.
   const first = splitThink(draft).answer;
-  const firstReasoning = (useData.getState().sessions[sessionId] as ChatSession | undefined)?.messages.find((m) => m.id === asstId)?.reasoning;
+  const answered = (useData.getState().sessions[sessionId] as ChatSession | undefined)?.messages.find((m) => m.id === asstId);
+  const firstReasoning = answered?.reasoning;
+  // The review goes to the model that wrote the first answer (Auto may have chosen it).
+  const reviewer = answered?.model && !isAuto(answered.model) ? answered.model : s.model;
   patch((m) => {
     m.status = 'streaming';
     m.statusText = 'Max thinking: checking and improving the first answer…';
   });
-  const final = await streamReply({ ...reply, messages: [...messages, { role: 'assistant', content: first }, { role: 'user', content: REVIEW_PROMPT }] });
+  const final = await streamReply({ ...reply, ref: reviewer, messages: [...messages, { role: 'assistant', content: first }, { role: 'user', content: REVIEW_PROMPT }] });
   patch((m) => {
     const note = `First answer, before the self-check:\n\n${first}`;
     if (final == null || !final.trim()) {

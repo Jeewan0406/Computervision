@@ -3,7 +3,7 @@ import type { WebSource } from './web';
 
 /** How the app talks to a provider. Almost every provider speaks the OpenAI
  * "chat/completions" dialect; Anthropic has its own "messages" API. */
-export type ProviderKind = 'openai' | 'anthropic' | 'puter' | 'browser';
+export type ProviderKind = 'openai' | 'anthropic' | 'puter' | 'browser' | 'auto';
 
 /** How a user can get access to a provider. */
 export type Access = 'keyless' | 'free-tier' | 'paid' | 'local';
@@ -95,6 +95,10 @@ export interface MsgMeta {
   providerName?: string;
   attempts?: number;
   fellBackFrom?: string;
+  /** Why the first choice was not used (shown with the switch). */
+  switchReason?: string;
+  /** Set when Auto chose the model: one plain sentence on why. */
+  auto?: string;
 }
 
 export type MsgStatus = 'streaming' | 'done' | 'error' | 'stopped';

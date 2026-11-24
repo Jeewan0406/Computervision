@@ -15,6 +15,18 @@ export const GATEWAY_ID = 'jeea-gateway';
 
 export const BUILTIN_PROVIDERS: ProviderDef[] = [
   {
+    id: 'auto',
+    name: 'Auto (JeeA! picks)',
+    kind: 'auto',
+    baseUrl: '',
+    access: 'keyless',
+    color: '#c2410c',
+    tagline: 'Picks a model for each question: fast free models for simple questions, the strongest one you can use for demanding ones. Switches to another model if one fails.',
+    suggestedModels: ['auto'],
+    modelLabels: { auto: 'Auto' },
+    defaultModel: 'auto',
+  },
+  {
     id: KEYLESS_ID,
     name: 'JeeA Free (Pollinations)',
     kind: 'openai',

@@ -2,6 +2,16 @@
 
 All notable changes to JeeA! are listed here. The same notes appear in the app under **What's new** (✨).
 
+## 1.10.0 — 2026-11-24 — Auto model choice and automatic switching
+
+### New
+- **Auto** (`src/lib/router.ts`, `src/lib/autopick.ts`): a virtual model at the top of the picker. For each question it scores how demanding the question is (length, code, maths and proofs, reasoning words such as compare/evaluate/recommend, several parts, attached files, pictures, thinking level) as simple, standard or complex. It ranks every model you can use by an estimated strength from the model's name (family and size), free or paid, own key, slow shared free tiers, models still waiting for their next free slot, recent failures and your Compare votes. Simple → small fast free models; complex → the strongest. Pictures go only to models that can see them. Each answer says which model replied and why. Agent runs pick once at the start, preferring models with tool use. New visitors start on Auto; saved choices are kept.
+- **Automatic switching** (`src/lib/runner.ts`): when a model is busy (429), refuses, cannot be found, sends an empty answer, gives no first word within 75 s (180 s at Extra high and Max) or stops halfway, JeeA! moves to the next model: your backup list first, then up to 4 models chosen as Auto would, from other services first. A half-written answer is cleared and started again. A busy free model that Auto chose is skipped instead of waited for. Failed models are avoided for up to 15 minutes. The answer shows "switched from … (reason)".
+- **Settings** (API Slots → Routing & reliability): *Switch models automatically when one fails* (on), *Auto may use paid models* (on), *Your backup models*.
+
+### Fixed
+- Ollama and LM Studio were shown as ready without setup since 1.9.0 (they were treated like in-browser models). In-browser models are now told apart by type, not by the "local" label.
+
 ## 1.9.0 — 2026-11-24 — Files and pictures that work, thinking levels, more free models, new logo
 
 ### Fixed

@@ -1,3 +1,5 @@
+import { isAuto } from './router';
+import { autoPick } from './autopick';
 import { currentThinking, thinkingText } from './thinkrun';
 import type { AgentSession, AgentStep, Message, MsgMeta } from './types';
 import { useData } from './data';
@@ -35,7 +37,18 @@ const NUDGE = 'You have reached the step limit. Do not call any more tools. Give
 export async function runAgent(sid: string, asstId: string) {
   const store = useData.getState();
   const s0 = store.sessions[sid] as AgentSession;
-  const ref = s0.model;
+  // Auto: an agent run keeps one model (its tool history belongs to that
+  // model), so the choice is made once here, preferring models with tool use.
+  let ref = s0.model;
+  let autoNote: string | undefined;
+  if (isAuto(ref)) {
+    const question = [...s0.messages].reverse().find((m) => m.role === 'user')?.content ?? '';
+    const pick = autoPick({ text: question }, { forAgent: true });
+    if (pick.chain[0]) {
+      ref = pick.chain[0];
+      autoNote = pick.reason;
+    }
+  }
   const provider = getProvider(ref.providerId);
   const msgOf = (x: unknown) => (x as AgentSession).messages.find((m) => m.id === asstId);
   const patchMsg = (fn: (m: Message) => void) => useData.getState().update(sid, (x) => {
@@ -48,8 +61,8 @@ export async function runAgent(sid: string, asstId: string) {
     if (st) fn(st);
   });
 
-  if (!provider) {
-    patchMsg((m) => { m.status = 'error'; m.error = 'Unknown provider.'; });
+  if (!provider || isAuto(ref)) {
+    patchMsg((m) => { m.status = 'error'; m.error = isAuto(ref) ? 'Auto found no model you can use right now. Add a key in API Slots, or choose a model.' : 'Unknown provider.'; });
     return;
   }
 
@@ -90,7 +103,7 @@ export async function runAgent(sid: string, asstId: string) {
   const job = `${sid}:${asstId}`;
   const ctrl = startJob(job);
   const t0 = performance.now();
-  const meta: MsgMeta = { tokensIn: 0, tokensOut: 0, estimated: false };
+  const meta: MsgMeta = { tokensIn: 0, tokensOut: 0, estimated: false, auto: autoNote };
   let finalText = '';
   let stepsUsed = 0;
   const maxSteps = Math.max(1, Math.min(25, s0.maxSteps || 8));

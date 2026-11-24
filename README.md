@@ -20,6 +20,8 @@ Chat with many AI models in one beautiful app. Start free with no key, add your 
 
 | Feature | What it does |
 |---|---|
+| ✨ **Auto model** | Choose **Auto** and JeeA! picks a model for each question: small fast free models for simple questions, the strongest model you can use for demanding ones (analysis, proofs, code, long files), and only picture-reading models for pictures. Each answer says which model replied and why. |
+| 🔁 **Automatic switching** | If a model is busy, refuses, sends an empty answer, does not reply in time or stops halfway, JeeA! switches to another good model by itself (from another service first) and starts the answer again. |
 | 📎 **Files and pictures** | Attach or drop **PDF, Word, PowerPoint, Excel**, text and code files: JeeA! reads them in your browser and sends their text (slides with speaker notes, every Excel sheet). Paste a **screenshot** or attach a **picture** in Chat and Compare; it goes to models that can see images. Text copied from Word, PowerPoint or a web page pastes as text. |
 | 🧠 **Thinking levels** | Low, Medium, High, Extra high and Max in every message box. Higher levels give every model critical-thinking steps (split the problem, question assumptions, check every number, give counter-arguments, compare options and sources). Claude and OpenAI reasoning models also get their real effort setting. At **Max**, Chat makes the model review its first answer as a strict expert and rewrite it. |
 | 💬 **Chat** | A standard chat with the model picker inside the chat box and friendly model names ("Llama 3.3 70B", "Gemini 2.5 Flash"): streaming answers, Markdown, tables, code highlighting, the model's reasoning (when it shares it), edit and resend, regenerate, history with search, pin and rename, export to Markdown. |
@@ -93,6 +95,18 @@ You can use any model a provider offers: JeeA! loads the live model list from th
 | OpenAI · Anthropic Claude · DeepSeek · xAI Grok · Together AI | Paid key | |
 | Ollama · LM Studio | Runs on your computer | Turn on CORS in the local server (see the note in the app). |
 | Your own endpoint | Any | Any OpenAI-compatible `/chat/completions` server, or the Anthropic Messages format. |
+
+## Auto and automatic switching
+
+**Auto** is the first entry in the model picker (and the default for new visitors). For each question it:
+
+1. **Scores the question** as simple, standard or complex from plain signals: length, code, maths and proofs, reasoning words (compare, evaluate, recommend, trade-offs…), several parts, attached files, pictures, and the thinking level (Low lowers it, High to Max raise it).
+2. **Ranks the models you can use** (free no-key services, the gateway, and every provider you added a key for). Each model gets a rough strength from 1 to 5 from its name: its family (for example Claude Opus, GPT-5, Gemini Pro are 5) or its size ("70B" is 4, "8B" is 2). Free models, your own keys and your Compare votes add points; slow shared free tiers, models still waiting for their next free slot and models that failed recently lose points. Simple questions go to small fast models, demanding ones to the strongest.
+3. **Shows why**: every answer says, for example, *"Auto: a demanding question (reasoning, maths), so it chose the strongest model available."*
+
+The strength estimate is a rule of thumb from model names, not a benchmark. If you prefer one model, pick it directly.
+
+**Automatic switching** works for any model, Auto or not. When a model is busy, refuses, cannot be found, sends an empty answer, gives no first word in time (75 s; 180 s at Extra high and Max) or stops halfway, JeeA! moves on: first to your own backup models, then to up to four models chosen the way Auto chooses, from other services first (one service being down often affects all its models). A half-written answer is cleared and started again. The answer shows *"switched from … (reason)"*, and the Logs page records each step. Agent runs keep one model for the whole task, because their tool history belongs to that model. Settings: **API Slots → Routing & reliability**.
 
 ## Free models for every visitor: the JeeA Gateway
 
@@ -280,6 +294,8 @@ src/
     projects.ts     projects store (IndexedDB) and their files
     extract.ts      text from PDF (pdf.js), Word (mammoth), PowerPoint and Excel (fflate) and text files
     attach.ts       paste rules and picture resizing for the message box
+    router.ts       Auto: how demanding a question is, model strength estimates, ranking
+    autopick.ts     Auto inside the app: usable models, recent failures, busy free tiers
     thinking.ts     thinking levels: critical-thinking steps, Claude effort, OpenAI reasoning effort, Max review
     local.ts        in-browser models: WebLLM (with webllm.worker.ts) and Chrome built-in AI
     small.ts        short instructions for small models

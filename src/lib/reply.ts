@@ -54,6 +54,7 @@ export async function streamReply(opts: {
       onText: f.onText,
       onReasoning: f.onReasoning,
       onStatus: f.onStatus,
+      onReset: f.reset,
     });
     f.finish();
     patch((m) => {

@@ -1012,3 +1012,7 @@ label.chip { cursor: pointer; }
 .user-pics img { max-width: 220px; max-height: 180px; border-radius: 10px; border: 1px solid var(--border); object-fit: cover; cursor: zoom-in; background: var(--surface-2); }
 .user-files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .user-file { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 3px 9px; border-radius: 8px; background: color-mix(in srgb, var(--surface-2) 80%, transparent); border: 1px solid var(--border); }
+
+/* ---------- v1.10: Auto model and automatic switching ---------- */
+.badge-auto { color: #fff; background: linear-gradient(135deg, var(--btn-a, var(--accent)), var(--btn-b, var(--accent-2))); }
+.metrics .metric-auto { color: var(--muted); flex-basis: 100%; white-space: normal; line-height: 1.35; display: block; }

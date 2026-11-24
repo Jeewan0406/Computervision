@@ -127,7 +127,7 @@ function AddSlotForm({ providers, preset, onDone }: { providers: ProviderDef[]; 
   const corsProxy = useSettings((s) => s.corsProxy);
   const update = useSettings((s) => s.updateSlot);
   const toast = useUI((s) => s.toast);
-  const keyed = providers.filter((p) => p.access !== 'keyless' && p.access !== 'local');
+  const keyed = providers.filter((p) => p.access !== 'keyless' && p.kind !== 'browser');
   const [pid, setPid] = useState(preset ?? 'gemini');
   const [key, setKey] = useState('');
   const [label, setLabel] = useState('');
@@ -299,8 +299,8 @@ export function KeysView() {
     .map((p) => ({ p, slots: s.slots.filter((x) => x.providerId === p.id) }))
     .filter((g) => g.slots.length);
 
-  const catalog = providers.filter((p) =>
-    filter === 'all' ? true : filter === 'free' ? p.access === 'free-tier' || p.access === 'keyless' || p.access === 'local' : p.access === filter,
+  const catalog = providers.filter((p) => p.kind !== 'auto').filter((p) =>
+    filter === 'all' ? true : filter === 'free' ? p.access === 'free-tier' || p.access === 'keyless' || p.kind === 'browser' : p.access === filter,
   );
 
   const exportSettings = (withKeys: boolean) => {
@@ -369,8 +369,16 @@ export function KeysView() {
           <h2 className="section-title">Routing & reliability</h2>
           <div className="card">
             <label className="set-row">
-              <span><b>Automatic fallback</b><br /><span className="muted sm">If every key of the chosen model fails before any text arrives, try these models in order.</span></span>
-              <input type="checkbox" className="switch" checked={s.fallback.enabled} onChange={(e) => s.set({ fallback: { ...s.fallback, enabled: e.target.checked } })} />
+              <span><b>Switch models automatically when one fails</b><br /><span className="muted sm">If the model is busy, refuses, gives an empty answer, does not reply in time or stops halfway, JeeA! moves on to another good model you can use (from another service first) and starts the answer again. The answer shows which model replied and why it switched.</span></span>
+              <input type="checkbox" className="switch" checked={s.fallback.auto !== false} onChange={(e) => s.set({ fallback: { ...s.fallback, auto: e.target.checked } })} aria-label="Switch models automatically when one fails" />
+            </label>
+            <label className="set-row">
+              <span><b>Auto may use paid models</b><br /><span className="muted sm">When on, Auto and automatic switching may choose models that cost money on your own keys (for example Claude or GPT). Free models are still preferred for simple questions. When off, they use only free models.</span></span>
+              <input type="checkbox" className="switch" checked={s.autoUsePaid !== false} onChange={(e) => s.set({ autoUsePaid: e.target.checked })} aria-label="Auto may use paid models" />
+            </label>
+            <label className="set-row">
+              <span><b>Your backup models</b><br /><span className="muted sm">Tried first, in this order, before the models JeeA! picks by itself.</span></span>
+              <input type="checkbox" className="switch" checked={s.fallback.enabled} onChange={(e) => s.set({ fallback: { ...s.fallback, enabled: e.target.checked } })} aria-label="Use your backup models" />
             </label>
             {s.fallback.enabled && (
               <div className="fallback-list">
@@ -429,14 +437,14 @@ export function KeysView() {
                           toast(`Puter: ${(e as Error).message}`, 'error');
                         }
                       }}><LogIn size={13} /> Sign in to Puter (free)</button>
-                    ) : p.access === 'local' ? (
+                    ) : p.kind === 'browser' ? (
                       <span className={`status ${localAvailable(p.id) ? 'ok' : 'warn'}`}><CheckCircle2 size={13} /> {localAvailable(p.id) ? 'Runs in this browser, no key' : 'Not supported by this browser'}</span>
                     ) : p.access === 'keyless' ? (
                       <span className="status ok"><CheckCircle2 size={13} /> Ready, no key needed</span>
                     ) : (
                       <button className="btn ghost xs" onClick={() => goAddSlot(p.id)}><Plus size={13} /> {n ? `Add key (${n})` : 'Add key'}</button>
                     )}
-                    {p.keyUrl && p.access !== 'keyless' && p.access !== 'local' && <a className="btn ghost xs" href={p.keyUrl} target="_blank" rel="noreferrer">Get key <ExternalLink size={12} /></a>}
+                    {p.keyUrl && p.access !== 'keyless' && p.kind !== 'browser' && <a className="btn ghost xs" href={p.keyUrl} target="_blank" rel="noreferrer">Get key <ExternalLink size={12} /></a>}
                     {p.docsUrl && <a className="btn ghost xs" href={p.docsUrl} target="_blank" rel="noreferrer">Docs <ExternalLink size={12} /></a>}
                     {p.custom && (
                       <button className="icon-btn xs danger push" title="Remove custom provider" onClick={async () => {

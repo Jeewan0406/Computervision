@@ -35,6 +35,12 @@ export function makeFlusher(
       status = s;
       schedule();
     },
+    /** Forget the text so far (the answer starts again with another model). */
+    reset: () => {
+      text = '';
+      reasoning = '';
+      schedule();
+    },
     finish: () => {
       clearTimeout(timer);
       timer = undefined;

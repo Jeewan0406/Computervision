@@ -1,3 +1,4 @@
+import { AUTO_REF } from './router';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { ModelRef, ProviderDef, Slot } from './types';
@@ -20,7 +21,10 @@ export interface Settings {
   slots: Slot[];
   customProviders: ProviderDef[];
   defaultModel: ModelRef;
-  fallback: { enabled: boolean; chain: ModelRef[] };
+  /** enabled: try the models in `chain` when the chosen one fails; auto: then also switch to other good models by itself. */
+  fallback: { enabled: boolean; chain: ModelRef[]; auto?: boolean };
+  /** Auto may choose models that cost money on your own keys. */
+  autoUsePaid: boolean;
   maxRetries: number;
   corsProxy: string;
   /** model key -> wins / battles from Compare votes */
@@ -72,8 +76,10 @@ const initial: Settings = {
   keyStorage: 'local',
   slots: [],
   customProviders: [],
-  defaultModel: DEFAULT_MODEL,
-  fallback: { enabled: true, chain: [DEFAULT_MODEL] },
+  // New visitors start on Auto; saved choices of existing users are kept.
+  defaultModel: AUTO_REF,
+  fallback: { enabled: true, chain: [DEFAULT_MODEL], auto: true },
+  autoUsePaid: true,
   maxRetries: 2,
   corsProxy: '',
   leaderboard: {},
@@ -225,8 +231,9 @@ export function slotsFor(providerId: string, slots: Slot[] = useSettings.getStat
   return slots.filter((s) => s.providerId === providerId);
 }
 
-/** No key needed: free shared services and models that run in the browser. */
-export const noKey = (p: ProviderDef) => p.access === 'keyless' || p.access === 'local';
+/** No key needed: free shared services and models that run in the browser.
+ * (Ollama and LM Studio are "local" too, but need their address added first.) */
+export const noKey = (p: ProviderDef) => p.access === 'keyless' || p.kind === 'browser';
 
 /** A provider is usable when it needs no key or has at least one enabled slot. */
 export function isUsable(p: ProviderDef, slots: Slot[] = useSettings.getState().slots) {
@@ -301,8 +308,8 @@ export function usableModelRefs(limit = 6): ModelRef[] {
   if (refs.length < 2) {
     // Free no-key models; Puter needs a sign-in, so it is only a last resort.
     const keyless = providers.filter((x) => x.access === 'keyless');
-    for (const p of keyless.filter((x) => x.kind !== 'puter')) push({ providerId: p.id, model: p.defaultModel });
-    if (!refs.length) for (const p of keyless) push({ providerId: p.id, model: p.defaultModel });
+    for (const p of keyless.filter((x) => x.kind !== 'puter' && x.kind !== 'auto')) push({ providerId: p.id, model: p.defaultModel });
+    if (!refs.length) for (const p of keyless.filter((x) => x.kind !== 'auto')) push({ providerId: p.id, model: p.defaultModel });
   }
   if (!refs.length) refs.push(DEFAULT_MODEL);
   return refs;

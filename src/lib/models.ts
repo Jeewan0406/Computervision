@@ -77,9 +77,9 @@ export function prettyModel(id: string): string {
 
 /** Is this model free to use? Keyless, free-tier and local providers are;
  * on OpenRouter-style providers only ids ending in ":free" are. */
-export function isFreeModel(provider: { access: string; freeSuffixOnly?: boolean; freeModels?: string[] } | undefined, model: string): boolean {
+export function isFreeModel(provider: { access: string; kind?: string; freeSuffixOnly?: boolean; freeModels?: string[] } | undefined, model: string): boolean {
   if (/:free$/i.test(model)) return true;
-  if (!provider) return false;
+  if (!provider || provider.kind === 'auto') return false;
   if (provider.freeSuffixOnly) return false;
   if (provider.freeModels) return provider.freeModels.includes(model);
   return provider.access === 'keyless' || provider.access === 'free-tier' || provider.access === 'local';

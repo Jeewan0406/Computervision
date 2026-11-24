@@ -316,6 +316,7 @@ export async function streamPuter(t: CallTarget, messages: ChatMsg[], params: Ge
 export function streamText(t: CallTarget, messages: ChatMsg[], params: GenParams, signal: AbortSignal, h: StreamHandlers): Promise<CallResult> {
   if (t.provider.kind === 'anthropic') return streamAnthropic(t, messages, params, signal, h);
   if (t.provider.kind === 'puter') return streamPuter(t, messages, params, signal, h);
+  if (t.provider.kind === 'auto') return Promise.reject(new LLMError('Auto must choose a model before sending.', { status: 400 }));
   if (t.provider.kind === 'browser') {
     // Loaded only when someone picks an in-browser model.
     return import('./local').then((l) => (t.provider.id === l.CHROME_AI_ID ? l.streamChromeAI(messages, signal, h) : l.streamWebLLM(t.model, messages, signal, h)));
@@ -473,6 +474,7 @@ export async function streamAnthropicAgent(
 
 export async function listModels(t: Omit<CallTarget, 'model'>, signal?: AbortSignal): Promise<string[]> {
   const target = { ...t, model: '' } as CallTarget;
+  if (t.provider.kind === 'auto') return ['auto'];
   if (t.provider.kind === 'browser') {
     const l = await import('./local');
     return t.provider.id === l.CHROME_AI_ID ? ['gemini-nano'] : l.webllmModels();

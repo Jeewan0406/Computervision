@@ -59,7 +59,8 @@ export function Metrics({ m }: { m: Message }) {
         {meta.estimated ? '≈' : ''}{fmtNum(meta.tokensIn)} in · {meta.estimated ? '≈' : ''}{fmtNum(meta.tokensOut)} out
       </span>
       {meta.slotLabel && <span className="metric-key" title="API slot used">🔑 {meta.slotLabel}</span>}
-      {meta.fellBackFrom && <span className="metric-warn" title="The first choice failed">↪ fallback from {meta.fellBackFrom}</span>}
+      {meta.fellBackFrom && <span className="metric-warn" title="The first model failed, so JeeA! switched to this one">↪ switched from {meta.fellBackFrom}{meta.switchReason ? ` (${meta.switchReason})` : ''}</span>}
+      {meta.auto && <span className="metric-auto" title="Why Auto chose this model">✨ {meta.auto}</span>}
     </div>
   );
 }

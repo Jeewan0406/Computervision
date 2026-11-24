@@ -64,7 +64,7 @@ export function ModelPicker({
   const refresh = async (p: ProviderDef) => {
     setLoading(p.id);
     try {
-      if (p.access === 'keyless' || p.access === 'local') {
+      if (p.access === 'keyless' || p.kind === 'browser') {
         const ids = await listModels({ provider: p, slot: { apiKey: '' }, corsProxy });
         setLiveModels(p.id, ids);
         toast(`${p.name}: ${ids.length} models loaded`, 'success');
@@ -142,16 +142,18 @@ export function ModelPicker({
                 <div className="mp-group-head">
                   <ProviderDot color={p.color} />
                   <span className="mp-group-name">{p.name}</span>
-                  <span className={`badge badge-${p.access}`}>{ACCESS_LABEL[p.access]}</span>
+                  {p.kind === 'auto' ? <span className="badge badge-auto">Picks for you</span> : <span className={`badge badge-${p.access}`}>{ACCESS_LABEL[p.access]}</span>}
                   {nSlots > 0 && <span className="mp-keys" title="Enabled keys"><KeyRound size={11} />{nSlots}</span>}
                   {p.kind === 'puter' && (
                     <button className="btn ghost xs" onClick={() => signIn(p)} disabled={loading === p.id} title="Sign in with a free Puter account">
                       <LogIn size={12} /> Sign in
                     </button>
                   )}
-                  <button className="icon-btn xs" title={live ? 'Reload model list' : 'Load live model list'} onClick={() => refresh(p)} disabled={loading === p.id}>
-                    <RefreshCw size={13} className={loading === p.id ? 'spin' : ''} />
-                  </button>
+                  {p.kind !== 'auto' && (
+                    <button className="icon-btn xs" title={live ? 'Reload model list' : 'Load live model list'} onClick={() => refresh(p)} disabled={loading === p.id}>
+                      <RefreshCw size={13} className={loading === p.id ? 'spin' : ''} />
+                    </button>
+                  )}
                 </div>
                 {shown.slice(0, 80).map((m) => {
                   const sel = value.providerId === p.id && value.model === m;
@@ -176,7 +178,8 @@ export function ModelPicker({
                   );
                 })}
                 {shown.length > 80 && <div className="mp-more">+{shown.length - 80} more — type to filter</div>}
-                {!live && !ql && (
+                {p.kind === 'auto' && !ql && <div className="mp-hint">{p.tagline}</div>}
+                {!live && !ql && p.kind !== 'auto' && (
                   <div className="mp-hint">
                     {p.kind === 'puter' ? 'Sign in, then press ↻ to load all Puter models.' : 'Suggested list. Press ↻ to load the live list.'}
                   </div>

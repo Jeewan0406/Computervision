@@ -1,5 +1,5 @@
 /** In-app release log ("What's new"). Mirrors CHANGELOG.md. */
-export const APP_VERSION = '1.9.0';
+export const APP_VERSION = '1.10.0';
 
 export interface Release {
   version: string;
@@ -9,6 +9,17 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
+  {
+    version: '1.10.0',
+    date: '2026-11-24',
+    title: 'Auto model choice and automatic switching',
+    items: [
+      { tag: 'new', feature: 'Auto', text: 'Pick "Auto" at the top of the model list and JeeA! chooses a model for each question: a small, fast free model for simple questions, a capable one for normal questions, and the strongest model you can use for demanding ones (analysis, comparisons, proofs, code, long files). Pictures go only to models that can see them. The answer says which model replied and why. New visitors start on Auto.' },
+      { tag: 'new', feature: 'Automatic switching', text: 'If a model is busy, refuses, sends an empty answer, does not reply in time or stops halfway, JeeA! switches to another good model by itself (from another service first) and starts the answer again. Your own backup models are tried first. A model that just failed is avoided for a few minutes. Switch it off in API Slots → Routing & reliability.' },
+      { tag: 'improved', feature: 'Paid models', text: 'A new setting decides whether Auto may use models that cost money on your own keys. Free models are still preferred for simple questions.' },
+      { tag: 'fixed', feature: 'Ollama and LM Studio', text: 'Since 1.9.0 they were shown as ready without being set up. They again need their address in API Slots first.' },
+    ],
+  },
   {
     version: '1.9.0',
     date: '2026-11-24',
