@@ -2,6 +2,25 @@
 
 All notable changes to JeeA! are listed here. The same notes appear in the app under **What's new** (✨).
 
+## 1.9.0 — 2026-11-24 — Files and pictures that work, thinking levels, more free models, new logo
+
+### Fixed
+- **Attach and paste** — attaching `answer.pptx` failed with "looks like a binary file. Only text files can be attached." The message box now reads PDF (pdf.js), Word `.docx` (mammoth), PowerPoint `.pptx` (slide text in order, with speaker notes) and Excel `.xlsx` (every sheet, shared strings, numbers, booleans) in the browser, plus text and code files (`src/lib/extract.ts`). Old `.doc/.ppt/.xls` files get a clear "save as" message.
+- **Paste** — copying from Word, PowerPoint, Excel or a web page puts both text and a picture on the clipboard; the box used to take the picture. Text now wins; a screenshot, a copied picture or a copied file is attached (`pasteAction` in `src/lib/attach.ts`).
+
+### New
+- **Pictures** in Chat and Compare: paste, drop or attach PNG, JPEG, WebP, GIF, BMP or AVIF. They are resized in the browser to at most 1,568 px and sent as image parts (OpenAI `image_url`, Anthropic base64 `image` blocks); up to 8 newest pictures per request. Sent messages show the pictures and file chips instead of the full file text.
+- **Thinking levels** — Low, Medium (default), High, Extra high, Max (`src/lib/thinking.ts`, picker in every message box). Written critical-thinking steps grow with the level for every model. Claude gets `output_config.effort` where the model supports it (all five levels on the Claude 5 family and Opus 4.7/4.8; no Extra high on 4.6; Opus 4.5 up to High); OpenAI o-series and GPT-5 models get `reasoning_effort` (low/medium/high), retried without it if refused. At Max, Chat runs a second pass: the model reviews its first answer and writes the improved one; the first answer stays in the reasoning panel.
+- **Free models without a key**, checked on 2026-11-24 from GitHub's servers with `agents/probe-free.mjs` (workflow "Check free models"):
+  - OVHcloud AI Endpoints: model list updated to the live one (33 models; chat models include Llama 3.3 70B, gpt-oss 120B/20B, Qwen3.5 397B, DeepSeek V4.1 Flash, Mistral Small 3.2, Gemma 4, Qwen VL vision models).
+  - AI Horde (`oai.aihorde.net`, anonymous key): works and allows browser calls, but answers took about 50 seconds; volunteers run the models and could see prompts; unfiltered community models are hidden.
+  - WebLLM (`@mlc-ai/web-llm` 0.2.87): open models run on the visitor's GPU through WebGPU, in a Web Worker; downloaded once (about 0.7–5 GB). Small models get a short system text with the date and web results (`src/lib/small.ts`).
+  - Chrome built-in AI (Gemini Nano): used only when the browser offers the `LanguageModel` Prompt API; detected at run time.
+  - Not added: Kilo AI Gateway free models work without a key but send no CORS headers, so browsers cannot call them — the JeeA Gateway now forwards them instead (`kilo:` models; set `KILO_FREE=off` to hide). LLM7, OpenRouter and Pollinations' new gateway now return 401 without a key; mlvoca returned 403 and apifreellm 404.
+
+### Improved
+- **Logo** — the owner's new design (a head with a network brain). The mark is a mask image, so it takes the theme's text colour; new favicon (PNG), Apple touch icon and app icons; service-worker cache `jeea-v3`.
+
 ## 1.8.1 — 2026-11-24 — Settings always within reach
 
 ### Fixed

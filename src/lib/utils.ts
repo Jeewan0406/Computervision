@@ -93,6 +93,10 @@ export const isAbort = (e: unknown) =>
   (typeof e === 'object' && e !== null && ((e as { name?: string }).name === 'AbortError' || (e as { name?: string }).name === 'APIUserAbortError'));
 
 export const titleFrom = (text: string, max = 48) => {
-  const t = text.replace(/\s+/g, ' ').trim();
+  // Leave out attached files' text; use the first file's name when there is no question.
+  const at = text.indexOf('**Attached file: ');
+  const file = at >= 0 ? /\*\*Attached file: ([^*\n]+)\*\*/.exec(text.slice(at))?.[1] : undefined;
+  const body = at >= 0 ? text.slice(0, at) : text;
+  const t = (body.trim() ? body : file ?? body).replace(/\s+/g, ' ').trim();
   return t.length > max ? `${t.slice(0, max - 1)}…` : t || 'New chat';
 };

@@ -1,3 +1,4 @@
+import { localAvailable } from '../lib/local';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CheckCircle2, Clock, Download, ExternalLink, Eye, EyeOff, KeyRound, Loader2, LogIn, Plus, RefreshCw, Route, ShieldCheck,
@@ -126,7 +127,7 @@ function AddSlotForm({ providers, preset, onDone }: { providers: ProviderDef[]; 
   const corsProxy = useSettings((s) => s.corsProxy);
   const update = useSettings((s) => s.updateSlot);
   const toast = useUI((s) => s.toast);
-  const keyed = providers.filter((p) => p.access !== 'keyless');
+  const keyed = providers.filter((p) => p.access !== 'keyless' && p.access !== 'local');
   const [pid, setPid] = useState(preset ?? 'gemini');
   const [key, setKey] = useState('');
   const [label, setLabel] = useState('');
@@ -299,7 +300,7 @@ export function KeysView() {
     .filter((g) => g.slots.length);
 
   const catalog = providers.filter((p) =>
-    filter === 'all' ? true : filter === 'free' ? p.access === 'free-tier' || p.access === 'keyless' : p.access === filter,
+    filter === 'all' ? true : filter === 'free' ? p.access === 'free-tier' || p.access === 'keyless' || p.access === 'local' : p.access === filter,
   );
 
   const exportSettings = (withKeys: boolean) => {
@@ -428,12 +429,14 @@ export function KeysView() {
                           toast(`Puter: ${(e as Error).message}`, 'error');
                         }
                       }}><LogIn size={13} /> Sign in to Puter (free)</button>
+                    ) : p.access === 'local' ? (
+                      <span className={`status ${localAvailable(p.id) ? 'ok' : 'warn'}`}><CheckCircle2 size={13} /> {localAvailable(p.id) ? 'Runs in this browser, no key' : 'Not supported by this browser'}</span>
                     ) : p.access === 'keyless' ? (
                       <span className="status ok"><CheckCircle2 size={13} /> Ready, no key needed</span>
                     ) : (
                       <button className="btn ghost xs" onClick={() => goAddSlot(p.id)}><Plus size={13} /> {n ? `Add key (${n})` : 'Add key'}</button>
                     )}
-                    {p.keyUrl && p.access !== 'keyless' && <a className="btn ghost xs" href={p.keyUrl} target="_blank" rel="noreferrer">Get key <ExternalLink size={12} /></a>}
+                    {p.keyUrl && p.access !== 'keyless' && p.access !== 'local' && <a className="btn ghost xs" href={p.keyUrl} target="_blank" rel="noreferrer">Get key <ExternalLink size={12} /></a>}
                     {p.docsUrl && <a className="btn ghost xs" href={p.docsUrl} target="_blank" rel="noreferrer">Docs <ExternalLink size={12} /></a>}
                     {p.custom && (
                       <button className="icon-btn xs danger push" title="Remove custom provider" onClick={async () => {

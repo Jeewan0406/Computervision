@@ -1,14 +1,39 @@
 import type { GenParams, ProviderDef, Slot } from './types';
+import { anthropicEffort, openaiEffort } from './thinking';
 import { createSSEParser, parseRetryAfter } from './sse';
 
 export interface ChatMsg {
   role: 'system' | 'user' | 'assistant';
   content: string;
+  /** Pictures (data: URLs) sent with a user message to models that can see images. */
+  images?: string[];
 }
+
+/** OpenAI-style content: text plus image parts when the message has pictures. */
+function oaiContent(m: OAIMessage): OAIMessage {
+  const { images, ...rest } = m as ChatMsg;
+  if (!images?.length) return images ? rest : m;
+  return { ...rest, content: [{ type: 'text', text: rest.content || ' ' }, ...images.map((url) => ({ type: 'image_url', image_url: { url } }))] };
+}
+
+/** Anthropic content blocks for a message with pictures. */
+function anthropicContent(m: ChatMsg) {
+  if (!m.images?.length) return m.content;
+  const pics = m.images.map((url) => {
+    const [, mediaType = 'image/jpeg', data = ''] = /^data:([^;]+);base64,(.*)$/s.exec(url) ?? [];
+    return { type: 'image' as const, source: { type: 'base64' as const, media_type: mediaType, data } };
+  });
+  return [...pics, { type: 'text' as const, text: m.content || ' ' }];
+}
+
+/** For providers that cannot take pictures here: say so instead of dropping them silently. */
+const noPictures = (m: ChatMsg) => (m.images?.length ? `${m.content}\n\n[The user attached ${m.images.length} picture(s), but this provider could not receive them.]` : m.content);
 
 export interface StreamHandlers {
   onText: (delta: string) => void;
   onReasoning?: (delta: string) => void;
+  /** Short live note (e.g. an in-browser model downloading). */
+  onStatus?: (text: string) => void;
 }
 
 export interface CallResult {
@@ -109,7 +134,7 @@ export async function streamOpenAI(
   h: StreamHandlers,
   extra: { tools?: OAITool[]; toolChoice?: 'auto' | 'none' } = {},
 ): Promise<CallResult> {
-  const body: Record<string, unknown> = { model: t.model, messages, stream: true };
+  const body: Record<string, unknown> = { model: t.model, messages: messages.map(oaiContent), stream: true };
   if (extra.tools?.length) {
     body.tools = extra.tools;
     body.tool_choice = extra.toolChoice ?? 'auto';
@@ -119,9 +144,18 @@ export async function streamOpenAI(
   if (params.topP != null) body.top_p = params.topP;
   if (params.maxTokens) body[t.provider.id === 'openai' ? 'max_completion_tokens' : 'max_tokens'] = params.maxTokens;
   if (t.provider.streamUsage) body.stream_options = { include_usage: true };
+  const effort = params.effort ? openaiEffort(t.provider.id, t.model, params.effort) : undefined;
+  if (effort) body.reasoning_effort = effort;
 
   const url = viaProxy(`${baseOf(t)}${t.provider.chatPath ?? '/chat/completions'}`, t);
-  const res = await doFetch(url, { method: 'POST', headers: headersFor(t), body: JSON.stringify(body), signal });
+  let res = await doFetch(url, { method: 'POST', headers: headersFor(t), body: JSON.stringify(body), signal });
+  if (!res.ok && effort && res.status === 400) {
+    // Some models refuse the effort setting: ask again without it.
+    const err = await errorFrom(res);
+    if (!/reasoning/i.test(err.message)) throw err;
+    delete body.reasoning_effort;
+    res = await doFetch(url, { method: 'POST', headers: headersFor(t), body: JSON.stringify(body), signal });
+  }
   if (!res.ok) throw await errorFrom(res);
 
   const out: CallResult = { content: '', reasoning: '' };
@@ -245,7 +279,7 @@ export async function streamPuter(t: CallTarget, messages: ChatMsg[], params: Ge
   const out: CallResult = { content: '', reasoning: '' };
   let stream: any;
   try {
-    stream = await puter.ai.chat(messages.map((m) => ({ role: m.role, content: m.content })), opts);
+    stream = await puter.ai.chat(messages.map((m) => ({ role: m.role, content: noPictures(m) })), opts);
   } catch (e) {
     const msg = (e as any)?.error?.message ?? (e as any)?.message ?? String(e);
     throw new LLMError(`Puter: ${msg}`, { status: (e as any)?.status ?? (/sign|auth|login/i.test(msg) ? 401 : undefined) });
@@ -282,10 +316,20 @@ export async function streamPuter(t: CallTarget, messages: ChatMsg[], params: Ge
 export function streamText(t: CallTarget, messages: ChatMsg[], params: GenParams, signal: AbortSignal, h: StreamHandlers): Promise<CallResult> {
   if (t.provider.kind === 'anthropic') return streamAnthropic(t, messages, params, signal, h);
   if (t.provider.kind === 'puter') return streamPuter(t, messages, params, signal, h);
+  if (t.provider.kind === 'browser') {
+    // Loaded only when someone picks an in-browser model.
+    return import('./local').then((l) => (t.provider.id === l.CHROME_AI_ID ? l.streamChromeAI(messages, signal, h) : l.streamWebLLM(t.model, messages, signal, h)));
+  }
   return streamOpenAI(t, messages, params, signal, h);
 }
 
 // ------------------------------------------------------------------ Anthropic
+
+/** Claude's effort setting (output_config.effort) for the chosen thinking level, where the model has one. */
+function effortConfig(model: string, params: GenParams) {
+  const effort = params.effort ? anthropicEffort(model, params.effort) : undefined;
+  return effort ? { output_config: { effort } } : {};
+}
 
 /** Claude models that take adaptive thinking (Claude 5 family and 4.6+). */
 const ADAPTIVE = /claude-(opus|sonnet|haiku|fable|mythos)-(5|4-[6-9])/;
@@ -309,7 +353,7 @@ export async function streamAnthropic(
   const system = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n\n');
   const convo = messages
     .filter((m) => m.role !== 'system')
-    .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+    .map((m) => ({ role: m.role as 'user' | 'assistant', content: anthropicContent(m) }));
   if (convo[0]?.role === 'assistant') convo.unshift({ role: 'user', content: '(continue)' });
 
   // Note: the SDK's API version rejects temperature/top_p, so they are not sent.
@@ -319,6 +363,7 @@ export async function streamAnthropic(
     messages: convo,
     ...(system ? { system } : {}),
     ...(ADAPTIVE.test(t.model) ? { thinking: { type: 'adaptive' as const, display: 'summarized' as const } } : {}),
+    ...effortConfig(t.model, params),
   };
 
   const out: CallResult = { content: '', reasoning: '' };
@@ -384,6 +429,7 @@ export async function streamAnthropicAgent(
     // Eager streaming sends tool input as it is written; JeeA! validates it before running a tool.
     tools: tools.map((x) => ({ name: x.name, description: x.description, input_schema: x.parameters, ...(proxied ? {} : { eager_input_streaming: true }) })),
     ...(ADAPTIVE.test(t.model) ? { thinking: { type: 'adaptive' as const, display: 'summarized' as const } } : {}),
+    ...effortConfig(t.model, params),
   };
   const out: CallResult = { content: '', reasoning: '' };
   try {
@@ -427,6 +473,10 @@ export async function streamAnthropicAgent(
 
 export async function listModels(t: Omit<CallTarget, 'model'>, signal?: AbortSignal): Promise<string[]> {
   const target = { ...t, model: '' } as CallTarget;
+  if (t.provider.kind === 'browser') {
+    const l = await import('./local');
+    return t.provider.id === l.CHROME_AI_ID ? ['gemini-nano'] : l.webllmModels();
+  }
   if (t.provider.kind === 'puter') {
     const puter = await loadPuter();
     const list = (await puter.ai.listModels()) as Record<string, unknown>[];
@@ -455,7 +505,7 @@ export async function listModels(t: Omit<CallTarget, 'model'>, signal?: AbortSig
 
   const url = `${baseOf(target)}/models`;
   const res = await doFetch(viaProxy(url, target), {
-    headers: t.slot.apiKey ? { Authorization: `Bearer ${t.slot.apiKey}` } : {},
+    headers: t.slot.apiKey ? { Authorization: `Bearer ${t.slot.apiKey}` } : t.provider.headers?.Authorization ? { Authorization: t.provider.headers.Authorization } : {},
     signal,
   });
   if (!res.ok) throw await errorFrom(res);
@@ -466,7 +516,11 @@ export async function listModels(t: Omit<CallTarget, 'model'>, signal?: AbortSig
     .filter((x): x is string => typeof x === 'string' && !!x)
     .map((id) => id.replace(/^models\//, ''));
   // Hide obvious non-chat models (embeddings, speech, image, moderation).
-  ids = ids.filter((id) => !/embed|whisper|tts|dall-e|moderation|rerank|transcribe|imagen|veo|aqa/i.test(id));
+  ids = ids.filter((id) => !/embed|whisper|tts|dall-e|moderation|rerank|transcribe|imagen|veo|aqa|bge-|guard|stable-diffusion/i.test(id));
+  if (t.provider.hideModels) {
+    const hide = new RegExp(t.provider.hideModels, 'i');
+    ids = ids.filter((id) => !hide.test(id));
+  }
   // Put free OpenRouter models first.
   ids.sort((a, b) => Number(b.endsWith(':free')) - Number(a.endsWith(':free')) || a.localeCompare(b));
   return [...new Set(ids)];

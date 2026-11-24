@@ -968,3 +968,47 @@ label.chip { cursor: pointer; }
   .topbar-right { gap: 2px; }
   .topbar-right .btn.sm { padding-left: 8px; padding-right: 8px; }
 }
+
+/* ---------- v1.9: the owner's logo (head with a network brain) ---------- */
+.logo-mark {
+  display: inline-block;
+  flex-shrink: 0;
+  background: currentColor;
+  -webkit-mask: var(--logo) center / contain no-repeat;
+  mask: var(--logo) center / contain no-repeat;
+}
+.logo-mark { color: var(--text); }
+.hero-logo .logo-mark { color: var(--text); }
+.wordmark, [data-accent='druk'] .wordmark, [data-theme='light'][data-accent='druk'] .wordmark { background: none; color: var(--text); -webkit-text-fill-color: currentColor; font-weight: 800; letter-spacing: -0.02em; }
+.wordmark-bang { transform: none; color: inherit; -webkit-text-fill-color: currentColor; }
+
+/* ---------- v1.9: thinking level picker ---------- */
+.think-pick {
+  position: relative; display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 4px 0 9px; border-radius: 999px;
+  font-size: 12.5px; font-weight: 600; color: var(--muted); background: var(--surface-2); border: 1px solid transparent; flex-shrink: 0; cursor: pointer;
+}
+.think-pick:hover, .think-pick:focus-within { border-color: var(--border-strong); color: var(--text); }
+.think-pick select {
+  appearance: none; -webkit-appearance: none; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; field-sizing: content;
+  padding: 0 14px 0 0; outline: none;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: right 5px center, right 1px center; background-size: 4px 4px; background-repeat: no-repeat;
+}
+.think-pick select option { color: var(--text); background: var(--surface); }
+.think-pick.think-high, .think-pick.think-xhigh { color: var(--accent); }
+.think-pick.think-max { color: #fff; background: linear-gradient(135deg, var(--btn-a, var(--accent)), var(--btn-b, var(--accent-2))); }
+.think-pick.think-max select option { color: var(--text); }
+@media (max-width: 520px) {
+  .think-pick { padding-left: 8px; gap: 0; }
+  .think-pick svg { display: none; }
+  .think-pick select { font-size: 12px; padding-right: 12px; }
+}
+
+/* ---------- v1.9: attachments (documents and pictures) ---------- */
+.attachment { max-width: 100%; }
+.attachment-name { max-width: 220px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.attachment-pic img { width: 28px; height: 28px; object-fit: cover; border-radius: 5px; margin-left: -4px; }
+.user-pics { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-bottom: 6px; }
+.user-pics img { max-width: 220px; max-height: 180px; border-radius: 10px; border: 1px solid var(--border); object-fit: cover; cursor: zoom-in; background: var(--surface-2); }
+.user-files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.user-file { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 3px 9px; border-radius: 8px; background: color-mix(in srgb, var(--surface-2) 80%, transparent); border: 1px solid var(--border); }

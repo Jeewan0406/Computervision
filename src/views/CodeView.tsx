@@ -1,3 +1,4 @@
+import { ThinkingPicker } from '../components/Thinking';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Code2, Download, Eye, History, Maximize2, Monitor, Play, Smartphone, Tablet, Terminal, Trash2, Copy, Columns2, MessageSquare,
@@ -329,7 +330,7 @@ export function CodeView() {
               </div>
             )}
           </div>
-          <Composer context={<ContextBadges area="code" projectId={session ? session.projectId ?? null : undefined} />} onSend={send} busy={busy} onStop={() => session && stopJobs(session.id)} placeholder={session?.code ? 'Ask for a change…' : 'Describe the app you want…'} left={<ModelPicker value={model} onChange={(r) => (session ? update(session.id, (x) => void ((x as CodeSession).model = r), false) : setDraftModel(r))} size="sm" />} />
+          <Composer context={<ContextBadges area="code" projectId={session ? session.projectId ?? null : undefined} />} onSend={send} busy={busy} onStop={() => session && stopJobs(session.id)} placeholder={session?.code ? 'Ask for a change…' : 'Describe the app you want…'} left={<><ModelPicker value={model} onChange={(r) => (session ? update(session.id, (x) => void ((x as CodeSession).model = r), false) : setDraftModel(r))} size="sm" /><ThinkingPicker /></>} />
         </div>
         {workspace}
       </div>

@@ -16,6 +16,9 @@ globalThis.fetch = async (url, init = {}) => {
   if (u === 'https://api.tavily.com/search') {
     return new Response(JSON.stringify({ results: [{ title: 'Bhutan news', url: 'https://www.bbs.bt/news/1', content: 'Fresh text', published_date: '2026-11-21', score: 0.9 }, { title: 'Blog', url: 'https://someone.blogspot.com/x', content: 'x' }, { url: 'https://bad.example' }] }));
   }
+  if (u === 'https://api.kilo.ai/api/gateway/models' && globalThis.KILO_UP) {
+    return new Response(JSON.stringify({ data: [{ id: 'kilo-auto/free' }, { id: 'nvidia/nemotron-3.5-lightning:free' }, { id: 'anthropic/claude-opus-5.5' }] }));
+  }
   if (u.endsWith('/chat/completions')) {
     return new Response('data: {"choices":[{"delta":{"content":"Hi"}}]}\n\ndata: [DONE]\n\n', { headers: { 'Content-Type': 'text/event-stream' } });
   }
@@ -147,4 +150,27 @@ test('images: FLUX on Workers AI returns OpenAI-style b64_json; 501 without the 
   assert.equal(r.status, 200);
   assert.deepEqual((await r.json()).data, [{ b64_json: 'aGVsbG8=' }]);
   assert.deepEqual(runs, [{ model: '@cf/black-forest-labs/flux-1-schnell', input: { prompt: 'a yak in the snow', steps: 8 } }]);
+});
+
+test('Kilo free models: listed and forwarded with no key; paid ones refused; can be switched off', async () => {
+  globalThis.KILO_UP = true;
+  try {
+    const r = await worker.fetch(req('/v1/models', {}, SITE, '9.9.9.1'), env);
+    const ids = (await r.json()).data.map((m) => m.id);
+    assert.ok(ids.includes('kilo:nvidia/nemotron-3.5-lightning:free'));
+    assert.ok(!ids.some((id) => id.includes('claude-opus-5.5')));
+    seen.length = 0;
+    const c = await worker.fetch(req('/v1/chat/completions', { method: 'POST', body: JSON.stringify({ model: 'kilo:nvidia/nemotron-3.5-lightning:free', messages: [{ role: 'user', content: 'hi' }], stream: true }) }, SITE, '9.9.9.2'), env);
+    assert.equal(c.status, 200);
+    const call = seen.find((x) => x.url.endsWith('/chat/completions'));
+    assert.equal(call.url, 'https://api.kilo.ai/api/gateway/chat/completions');
+    assert.equal(call.auth, undefined);
+    assert.equal(call.body.model, 'nvidia/nemotron-3.5-lightning:free');
+    const paid = await worker.fetch(req('/v1/chat/completions', { method: 'POST', body: JSON.stringify({ model: 'kilo:anthropic/claude-opus-5.5', messages: [] }) }, SITE, '9.9.9.3'), env);
+    assert.equal(paid.status, 403);
+    const off = await worker.fetch(req('/v1/models', {}, SITE, '9.9.9.4'), { ...env, KILO_FREE: 'off' });
+    assert.ok(!(await off.json()).data.some((m) => m.id.startsWith('kilo:')));
+  } finally {
+    globalThis.KILO_UP = false;
+  }
 });

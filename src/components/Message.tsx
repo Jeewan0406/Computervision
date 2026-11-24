@@ -122,7 +122,16 @@ export const MessageItem = memo(function MessageItem({
           </div>
         ) : (
           <>
-            <div className="bubble-user">{m.content}</div>
+            {m.images && m.images.length > 0 && (
+              <div className="user-pics">
+                {m.images.map((im, k) => (
+                  <a key={k} href={im.dataUrl} target="_blank" rel="noreferrer" title={im.name}>
+                    <img src={im.dataUrl} alt={im.name} />
+                  </a>
+                ))}
+              </div>
+            )}
+            <UserBubble text={m.content} />
             <div className="msg-actions">
               <button className="icon-btn xs" title="Copy" onClick={async () => setCopied(await copyText(m.content))}>
                 {copied ? <Check size={13} /> : <Copy size={13} />}
@@ -203,6 +212,27 @@ export function TypingDots() {
       <span />
       <span />
       <span />
+    </div>
+  );
+}
+
+/** The user's text, with attached files shown as small chips instead of their full text. */
+function UserBubble({ text }: { text: string }) {
+  const at = text.indexOf('\n\n**Attached file: ');
+  const head = at >= 0 ? text.slice(0, at) : text;
+  const files = at >= 0 ? [...text.slice(at).matchAll(/\*\*Attached file: ([^*\n]+)\*\*\n```\n([\s\S]*?)\n```/g)].map((x) => ({ name: x[1], chars: x[2].length })) : [];
+  return (
+    <div className="bubble-user">
+      {head}
+      {files.length > 0 && (
+        <div className="user-files">
+          {files.map((f, i) => (
+            <span key={i} className="user-file" title={`${f.chars.toLocaleString()} characters sent to the model`}>
+              📄 {f.name}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

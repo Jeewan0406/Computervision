@@ -1,3 +1,5 @@
+import { ThinkingPicker } from '../components/Thinking';
+import { thinkingText } from '../lib/thinkrun';
 import { useState } from 'react';
 import { ArrowDown, ArrowUp, ChevronDown, ChevronRight, Plus, Trash2, Users } from 'lucide-react';
 import type { TeamMode, TeamRole, TeamRun, TeamSession, TeamStep } from '../lib/types';
@@ -58,7 +60,7 @@ async function executeRun(sid: string, runId: string, input: string) {
   if (w.aborted) return;
   const s = useData.getState().sessions[sid] as TeamSession;
   const pc = await personalContext('team', s.projectId, input);
-  const waves = planTeam(s, input, w.prompt, joinSystem(ANSWER_STANDARD, rulesText(), pc.text));
+  const waves = planTeam(s, input, w.prompt, joinSystem(ANSWER_STANDARD, rulesText(), thinkingText(), pc.text));
   const done: { step: TeamStep; content: string }[] = [];
   let failed = false;
 
@@ -340,7 +342,7 @@ export function TeamView() {
         </div>
       </div>
 
-      <Composer context={<ContextBadges area="team" projectId={session ? session.projectId ?? null : undefined} />} onSend={send} busy={busy} onStop={() => session && stopJobs(session.id)} placeholder="Give your team a task…" left={<WebToggle />} />
+      <Composer context={<ContextBadges area="team" projectId={session ? session.projectId ?? null : undefined} />} onSend={send} busy={busy} onStop={() => session && stopJobs(session.id)} placeholder="Give your team a task…" left={<><WebToggle /><ThinkingPicker /></>} />
     </div>
   );
 }

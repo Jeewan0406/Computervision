@@ -1,5 +1,5 @@
 /** In-app release log ("What's new"). Mirrors CHANGELOG.md. */
-export const APP_VERSION = '1.8.1';
+export const APP_VERSION = '1.9.0';
 
 export interface Release {
   version: string;
@@ -9,6 +9,19 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
+  {
+    version: '1.9.0',
+    date: '2026-11-24',
+    title: 'Files and pictures that work, thinking levels, more free models, new logo',
+    items: [
+      { tag: 'fixed', feature: 'Attach and paste', text: 'PowerPoint (.pptx) and Excel (.xlsx) files no longer fail with "binary file": JeeA! now reads PDF, Word, PowerPoint (with speaker notes), Excel (every sheet), text and code files in your browser. Text copied from Word, PowerPoint or a web page now pastes as text instead of becoming a picture.' },
+      { tag: 'new', feature: 'Pictures', text: 'Paste a screenshot, drop a photo or attach an image in Chat and Compare. Pictures are made smaller in your browser and sent to models that can see images (for example Claude, GPT, Gemini, or the free Qwen VL models on OVHcloud).' },
+      { tag: 'new', feature: 'Thinking levels', text: 'A 🧠 picker in every message box: Low, Medium, High, Extra high and Max. Higher levels give every model written critical-thinking steps (split the problem, check assumptions and numbers, give counter-arguments, compare options and sources). Claude and OpenAI reasoning models also get their real effort setting. At Max, Chat makes the model check its first answer as a strict reviewer and rewrite it.' },
+      { tag: 'new', feature: 'Free models', text: 'Checked from GitHub\'s servers today: OVHcloud (no key) now lists its current models, including Llama 3.3 70B, gpt-oss 120B, Qwen3.5 397B and DeepSeek V4.1 Flash. New: AI Horde (volunteer community, no key, slow), and two kinds of models that run inside your own browser with no server at all: WebLLM (Llama, Qwen, Phi, Gemma; needs WebGPU) and Chrome\'s built-in Gemini Nano where Chrome offers it.' },
+      { tag: 'new', feature: 'Gateway', text: 'The JeeA Gateway can now pass on Kilo AI Gateway\'s free models with no key (Kilo blocks direct browser calls).' },
+      { tag: 'improved', feature: 'Logo', text: 'The new JeeA! logo: a head whose brain is a network of linked nodes. It follows the light and dark themes, and the browser and phone icons use it too.' },
+    ],
+  },
   {
     version: '1.8.1',
     date: '2026-11-24',

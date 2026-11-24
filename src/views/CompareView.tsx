@@ -1,3 +1,6 @@
+import type { ImageAtt } from '../lib/types';
+import { ThinkingPicker } from '../components/Thinking';
+import { thinkingText } from '../lib/thinkrun';
 import { useMemo, useState } from 'react';
 import { Plus, Scale, Trophy, X } from 'lucide-react';
 import type { CompareLane, CompareSession, Message, ModelRef } from '../lib/types';
@@ -82,7 +85,7 @@ export function CompareView() {
       jobId: `${sid}:${laneId}:${asstId}`,
       locate: (x) => (x as CompareSession).lanes.find((l) => l.id === laneId)?.messages.find((m) => m.id === asstId),
       ref: lane.model,
-      messages: toApiMessages(joinSystem(ANSWER_STANDARD, rulesText(), personal, s.system, w.prompt), history),
+      messages: toApiMessages(joinSystem(ANSWER_STANDARD, rulesText(), thinkingText(), personal, s.system, w.prompt), history),
       params: s.params,
       feature: 'compare',
     });
@@ -126,7 +129,7 @@ export function CompareView() {
     await Promise.all([...ids].map(([laneId, asstId]) => runLane(sid, laneId, asstId, w, pc.text)));
   };
 
-  const send = (text: string) => {
+  const send = (text: string, images?: ImageAtt[]) => {
     let id = session?.id;
     if (!id) {
       id = create('compare', {
@@ -141,7 +144,7 @@ export function CompareView() {
       const c = x as CompareSession;
       if (!c.lanes.some((l) => l.messages.length)) c.title = titleFrom(text);
       c.judge = c.judge ? { model: c.judge.model } : undefined;
-      for (const l of c.lanes) l.messages.push({ id: uid(), role: 'user', content: text, createdAt: Date.now() });
+      for (const l of c.lanes) l.messages.push({ id: uid(), role: 'user', content: text, ...(images ? { images } : {}), createdAt: Date.now() });
     });
     void runRound(sid, text);
   };
@@ -290,7 +293,7 @@ export function CompareView() {
         </div>
       )}
 
-      <Composer context={<ContextBadges area="compare" projectId={session ? session.projectId ?? null : undefined} />} onSend={send} busy={busy} onStop={() => session && stopJobs(session.id)} placeholder="Ask all models the same thing…" left={<WebToggle />} />
+      <Composer context={<ContextBadges area="compare" projectId={session ? session.projectId ?? null : undefined} />} onSend={send} allowImages busy={busy} onStop={() => session && stopJobs(session.id)} placeholder="Ask all models the same thing…" left={<><WebToggle /><ThinkingPicker /></>} />
     </div>
   );
 }

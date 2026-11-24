@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Bot, Code2, Columns3, KeyRound, Users } from 'lucide-react';
-import type { ChatSession, Message, ModelRef } from '../lib/types';
+import type { ChatSession, ImageAtt, Message, ModelRef, Session } from '../lib/types';
+import { ThinkingPicker } from '../components/Thinking';
+import { REVIEW_PROMPT } from '../lib/thinking';
+import { currentThinking, thinkingText } from '../lib/thinkrun';
 import { useData } from '../lib/data';
 import { useSettings, getProvider, isUsable, modelLabel } from '../lib/settings';
 import { useUI } from '../lib/ui';
@@ -32,12 +35,31 @@ function dedupeSources(list: WebSource[]): WebSource[] {
   return out.length ? withApa(out) : [];
 }
 
+/** Most pictures sent in one request (the newest are kept). */
+const MAX_PICTURES = 8;
+
 export function toApiMessages(system: string, history: Message[]): ChatMsg[] {
   const out: ChatMsg[] = [];
   if (system.trim()) out.push({ role: 'system', content: system.trim() });
+  let pictures = 0;
+  const keep = new Map<Message, string[]>();
+  for (let i = history.length - 1; i >= 0; i--) {
+    const m = history[i];
+    if (m.role !== 'user' || !m.images?.length) continue;
+    const room = Math.max(0, MAX_PICTURES - pictures);
+    const list = m.images.slice(0, room).map((x) => x.dataUrl);
+    pictures += list.length;
+    keep.set(m, list);
+  }
   for (const m of history) {
     if (m.role === 'system') continue;
     if (m.role === 'assistant' && (m.status === 'error' || !m.content.trim())) continue;
+    if (m.role === 'user' && m.images?.length) {
+      const imgs = keep.get(m) ?? [];
+      const left = m.images.length - imgs.length;
+      out.push({ role: 'user', content: left ? `${m.content}\n\n[${left} earlier picture(s) not re-sent to save space.]` : m.content, ...(imgs.length ? { images: imgs } : {}) });
+      continue;
+    }
     out.push({ role: m.role, content: m.role === 'assistant' ? splitThink(m.content).answer : m.content });
   }
   return out;
@@ -77,14 +99,38 @@ async function ask(sessionId: string) {
   });
   if (w.aborted) return;
   const pc = await personalContext('chat', s.projectId, users[users.length - 1]?.content ?? '');
-  await streamReply({
+  const level = currentThinking();
+  const messages = toApiMessages(joinSystem(ANSWER_STANDARD, rulesText(), thinkingText({ selfCheck: level === 'max' }), pc.text, s.system, w.prompt), history);
+  const reply = {
     sessionId,
     jobId: `${sessionId}:${asstId}`,
-    locate: (x) => (x as ChatSession).messages.find((m) => m.id === asstId),
+    locate: (x: Session) => (x as ChatSession).messages.find((m) => m.id === asstId),
     ref: s.model,
-    messages: toApiMessages(joinSystem(ANSWER_STANDARD, rulesText(), pc.text, s.system, w.prompt), history),
     params: s.params,
-    feature: 'chat',
+    feature: 'chat' as const,
+  };
+  const draft = await streamReply({ ...reply, messages });
+  if (level !== 'max' || draft == null || !draft.trim()) return;
+
+  // Max: a second pass. The model checks its first answer as a strict
+  // reviewer and writes the improved final answer in its place.
+  const first = splitThink(draft).answer;
+  const firstReasoning = (useData.getState().sessions[sessionId] as ChatSession | undefined)?.messages.find((m) => m.id === asstId)?.reasoning;
+  patch((m) => {
+    m.status = 'streaming';
+    m.statusText = 'Max thinking: checking and improving the first answer…';
+  });
+  const final = await streamReply({ ...reply, messages: [...messages, { role: 'assistant', content: first }, { role: 'user', content: REVIEW_PROMPT }] });
+  patch((m) => {
+    const note = `First answer, before the self-check:\n\n${first}`;
+    if (final == null || !final.trim()) {
+      // The check failed or was stopped: keep the first answer.
+      m.content = draft;
+      if (m.status === 'error') m.status = 'done';
+      m.error = undefined;
+    }
+    m.reasoning = [firstReasoning, m.reasoning, note].filter(Boolean).join('\n\n---\n\n');
+    m.statusText = undefined;
   });
 }
 
@@ -103,7 +149,7 @@ function Welcome({ model, onPick }: { model: ModelRef; onPick: (text: string) =>
   return (
     <div className="welcome">
       <div className="welcome-hero">
-        <div className="hero-logo"><LogoMark size={72} /></div>
+        <div className="hero-logo"><LogoMark size={96} /></div>
         <h1>Hi, I'm <Wordmark /></h1>
         <p className="welcome-sub">One place to chat with many AI models: free ones, and any you bring with your own keys.</p>
         <div className={`ready-chip${ready ? '' : ' warn'}`}>
@@ -144,13 +190,13 @@ export function ChatView() {
   const last = session?.messages[session.messages.length - 1];
   const { ref } = useAutoScroll<HTMLDivElement>(`${session?.messages.length}:${last?.content.length}:${last?.reasoning?.length}:${last?.status}`, !!session?.messages.length);
 
-  const send = (text: string) => {
+  const send = (text: string, images?: ImageAtt[]) => {
     let id = session?.id;
     if (!id) id = create('chat', { model: draftModel, system: draftSystem, params: draftParams, title: titleFrom(text) });
     update(id, (x) => {
       const c = x as ChatSession;
       if (!c.messages.length) c.title = titleFrom(text);
-      c.messages.push({ id: uid(), role: 'user', content: text, createdAt: Date.now() });
+      c.messages.push({ id: uid(), role: 'user', content: text, ...(images ? { images } : {}), createdAt: Date.now() });
     });
     void ask(id);
   };
@@ -231,6 +277,7 @@ export function ChatView() {
 
       <Composer context={<ContextBadges area="chat" projectId={session ? session.projectId ?? null : undefined} />}
         onSend={send}
+        allowImages
         busy={busy}
         onStop={() => session && stopJobs(session.id)}
         placeholder={`Message ${modelLabel(model)}…`}
@@ -241,6 +288,7 @@ export function ChatView() {
               onChange={(r) => (session ? update(session.id, (x) => void ((x as ChatSession).model = r), false) : setDraftModel(r))}
             />
             <WebToggle />
+            <ThinkingPicker />
           </>
         }
       />

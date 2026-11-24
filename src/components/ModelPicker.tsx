@@ -64,7 +64,7 @@ export function ModelPicker({
   const refresh = async (p: ProviderDef) => {
     setLoading(p.id);
     try {
-      if (p.access === 'keyless') {
+      if (p.access === 'keyless' || p.access === 'local') {
         const ids = await listModels({ provider: p, slot: { apiKey: '' }, corsProxy });
         setLiveModels(p.id, ids);
         toast(`${p.name}: ${ids.length} models loaded`, 'success');

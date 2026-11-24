@@ -1,3 +1,4 @@
+import { currentThinking, thinkingText } from './thinkrun';
 import type { AgentSession, AgentStep, Message, MsgMeta } from './types';
 import { useData } from './data';
 import { getProvider } from './settings';
@@ -76,7 +77,7 @@ export async function runAgent(sid: string, asstId: string) {
   if (w.aborted) return;
   const base = `${AGENT_SYSTEM}\nToday is ${new Date().toDateString()}.${toolNames.includes('ask_model') ? `\nModels you can ask with ask_model: ${delegateIds().join(', ')}.` : ''}`;
   const pc = await personalContext('agent', s0.projectId, users[users.length - 1]?.content ?? '');
-  const system = joinSystem(base, ANSWER_STANDARD, rulesText(), pc.text, w.prompt);
+  const system = joinSystem(base, ANSWER_STANDARD, rulesText(), thinkingText(), pc.text, w.prompt);
 
   let mode: Mode = provider.kind === 'anthropic' ? 'anthropic' : provider.kind === 'puter' || provider.nativeTools === false ? 'text' : 'openai';
   if (!tools.length) mode = provider.kind === 'anthropic' ? 'anthropic' : 'text';
@@ -110,13 +111,13 @@ export async function runAgent(sid: string, asstId: string) {
           (target, h, signal) => {
             if (mode === 'anthropic') {
               const msgs = lastChance ? [...anth, { role: 'user', content: NUDGE }] : anth;
-              return streamAnthropicAgent(target, system, msgs, tools, {}, signal, h);
+              return streamAnthropicAgent(target, system, msgs, tools, { effort: currentThinking() }, signal, h);
             }
             if (mode === 'openai') {
               const msgs = lastChance ? [...oai, { role: 'user', content: NUDGE }] : oai;
-              return streamOpenAI(target, msgs, {}, signal, h, { tools: oaiTools, toolChoice: lastChance ? 'none' : 'auto' });
+              return streamOpenAI(target, msgs, { effort: currentThinking() }, signal, h, { tools: oaiTools, toolChoice: lastChance ? 'none' : 'auto' });
             }
-            return streamText(target, (lastChance ? [...txt, { role: 'user', content: NUDGE }] : txt) as ChatMsg[], {}, signal, h);
+            return streamText(target, (lastChance ? [...txt, { role: 'user', content: NUDGE }] : txt) as ChatMsg[], { effort: currentThinking() }, signal, h);
           },
         );
       } catch (e) {

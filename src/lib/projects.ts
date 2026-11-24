@@ -16,7 +16,7 @@ export const BUDGET_CHARS: Record<Budget, number> = { small: 12_000, medium: 32_
 export interface ProjectFile {
   id: string;
   name: string;
-  kind: 'text' | 'pdf' | 'docx';
+  kind: 'text' | 'pdf' | 'docx' | 'pptx' | 'xlsx';
   size: number;
   chars: number;
   pages?: number;

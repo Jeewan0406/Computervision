@@ -1,3 +1,4 @@
+import { ThinkingPicker } from '../components/Thinking';
 import { useEffect, useRef, useState } from 'react';
 import { Bot, Check, ChevronDown, ChevronRight, Download, ExternalLink, Loader2, Wrench, X, Clock3 } from 'lucide-react';
 import type { AgentSession, AgentStep, Message, ModelRef } from '../lib/types';
@@ -265,7 +266,7 @@ export function AgentView() {
             busy={busy}
             onStop={() => session && stopJobs(session.id)}
             placeholder="Describe a goal for the agent…"
-            left={<ModelPicker value={model} onChange={(r) => set({ model: r })} size="sm" />}
+            left={<><ModelPicker value={model} onChange={(r) => set({ model: r })} size="sm" /><ThinkingPicker /></>}
           />
         </>
       )}

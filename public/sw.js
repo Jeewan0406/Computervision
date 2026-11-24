@@ -5,10 +5,10 @@
  * providers are never cached (they go straight to the network).
  */
 // Bump when un-hashed files (icons, manifest) change, so old copies are dropped.
-const CACHE = 'jeea-v2';
+const CACHE = 'jeea-v3';
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', './index.html', './favicon.svg', './manifest.webmanifest'])).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(['./', './index.html', './favicon.png', './manifest.webmanifest'])).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', (e) => {

@@ -1,3 +1,4 @@
+import { currentThinking } from './thinkrun';
 import type { GenParams, ModelRef, MsgMeta, ProviderDef, Slot, View } from './types';
 import { LLMError, streamText, type CallTarget, type ChatMsg } from './llm';
 import { getProvider, useSettings } from './settings';
@@ -88,7 +89,7 @@ async function waitWithCountdown(ms: number, label: string, opts: { signal: Abor
 const rr = new Map<string, number>();
 
 function candidateSlots(p: ProviderDef, pinned?: string): SlotLike[] {
-  if (p.access === 'keyless') {
+  if (p.access === 'keyless' || p.access === 'local') {
     return [{
       id: `keyless:${p.id}`, providerId: p.id, label: 'Free', apiKey: '', enabled: true, createdAt: 0,
       status: 'ok', uses: 0, failures: 0, virtual: true,
@@ -151,7 +152,7 @@ export interface SlotRunOptions {
 export async function runChat(opts: RunOptions): Promise<RunResult> {
   const { result, meta, usedRef } = await runWithSlots(
     { ...opts, allowFallback: true, inputForEstimate: opts.messages.map((m) => m.content).join('\n') },
-    (target, h, signal) => streamText(target, opts.messages, opts.params ?? {}, signal, h),
+    (target, h, signal) => streamText(target, opts.messages, { effort: currentThinking(), ...(opts.params ?? {}) }, signal, h),
   );
   return { content: result.content, reasoning: result.reasoning, meta, usedRef };
 }
@@ -212,6 +213,7 @@ export async function runWithSlots<R extends AttemptResult>(
             received += d.length;
             opts.onReasoning?.(d);
           },
+          onStatus: (text: string) => opts.onStatus?.(text),
         };
         try {
           opts.onStatus?.('');

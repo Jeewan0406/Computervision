@@ -69,7 +69,7 @@ export function Sidebar() {
   }, [list]);
 
   const keyed = slots.filter((s) => s.enabled).length;
-  const providersReady = allProviders().filter((p) => p.access !== 'keyless' && isUsable(p, slots)).length;
+  const providersReady = allProviders().filter((p) => p.access !== 'keyless' && p.access !== 'local' && isUsable(p, slots)).length;
 
   const newSession = () => {
     if (view === 'keys' || view === 'logs' || view === 'images') setView('chat');

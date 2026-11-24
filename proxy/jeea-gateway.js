@@ -59,7 +59,19 @@ const UPSTREAMS = {
   zai: { base: 'https://api.z.ai/api/paas/v4', secret: 'ZAI_API_KEY' },
   siliconflow: { base: 'https://api.siliconflow.com/v1', secret: 'SILICONFLOW_API_KEY' },
   ovh: { base: 'https://oai.endpoints.kepler.ai.cloud.ovh.net/v1', secret: 'OVH_AI_KEY' },
+  // Kilo AI Gateway: its ":free" models answer without any key (checked 2026-11-24),
+  // but browsers cannot call it directly (no CORS), so the gateway passes them on.
+  // On by default; set KILO_FREE to "off" to hide them. KILO_API_KEY is optional.
+  kilo: { base: 'https://api.kilo.ai/api/gateway', secret: 'KILO_API_KEY', keyless: true, freeOnly: true },
 };
+
+/** The key for an upstream: its secret, '' for a keyless upstream that is switched on, else undefined. */
+function keyFor(env, up) {
+  if (env[up.secret]) return env[up.secret];
+  if (up.keyless && String(env.KILO_FREE || '').toLowerCase() !== 'off') return '';
+  return undefined;
+}
+const authHeader = (key) => (key ? { Authorization: `Bearer ${key}` } : {});
 
 // Cloudflare Workers AI chat models (ids from Cloudflare's model catalog).
 const CF_MODELS = [
@@ -160,7 +172,7 @@ async function listUpstream(name, up, key) {
   const hit = cache && (await cache.match(cacheKey));
   if (hit) data = await hit.json();
   else {
-    const r = await fetch(url, { headers: { Authorization: `Bearer ${key}` } });
+    const r = await fetch(url, { headers: authHeader(key) });
     if (!r.ok) return [];
     data = await r.json();
     if (cache) await cache.put(cacheKey, new Response(JSON.stringify(data), { headers: { 'Cache-Control': 'max-age=3600' } }));
@@ -239,7 +251,7 @@ export default {
     const path = url.pathname.replace(/\/+$/, '');
 
     if (request.method === 'GET' && (path === '' || path === '/' || path === '/v1')) {
-      const ready = Object.keys(UPSTREAMS).filter((n) => env[UPSTREAMS[n].secret]);
+      const ready = Object.keys(UPSTREAMS).filter((n) => keyFor(env, UPSTREAMS[n]) !== undefined);
       if (env.AI) ready.unshift('cloudflare');
       return json({ name: 'JeeA Gateway', providers: ready, search: !!env.TAVILY_API_KEY, images: !!env.AI, endpoints: ['/v1/models', '/v1/chat/completions', '/v1/search', '/v1/images/generations'] }, 200, cors);
     }
@@ -248,8 +260,8 @@ export default {
       const out = [];
       if (env.AI) for (const id of CF_MODELS) out.push({ id: `cloudflare:${id}`, object: 'model', owned_by: 'cloudflare' });
       for (const [name, up] of Object.entries(UPSTREAMS)) {
-        const key = env[up.secret];
-        if (!key) continue;
+        const key = keyFor(env, up);
+        if (key === undefined) continue;
         try {
           for (const id of await listUpstream(name, up, key)) out.push({ id: `${name}:${id}`, object: 'model', owned_by: name });
         } catch {
@@ -329,8 +341,8 @@ export default {
       if (name === 'cloudflare') return workersAI(env, model, body, cap, cors);
       const up = UPSTREAMS[name];
       if (!up || !model) return json({ error: { message: `Unknown model "${full}". Use "provider:model" from /v1/models.` } }, 400, cors);
-      const key = env[up.secret];
-      if (!key) return json({ error: { message: `This gateway has no key for ${name}.` } }, 400, cors);
+      const key = keyFor(env, up);
+      if (key === undefined) return json({ error: { message: `This gateway has no key for ${name}.` } }, 400, cors);
       if (up.freeOnly && !model.endsWith(':free')) return json({ error: { message: 'Only free (":free") models are offered for this provider.' } }, 403, cors);
 
       const fwd = { ...body, model };
@@ -340,7 +352,7 @@ export default {
 
       const upstream = await fetch(`${up.base}/chat/completions`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+        headers: { 'Content-Type': 'application/json', ...authHeader(key) },
         body: JSON.stringify(fwd),
       });
       const headers = new Headers(cors);

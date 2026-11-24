@@ -156,7 +156,7 @@ function SettingsModal({ onClose }: { onClose: () => void }) {
         </div>
       </section>
       <section className="set-section about">
-        <LogoMark size={40} />
+        <LogoMark size={48} />
         <div>
           <Wordmark small /> <span className="muted sm">v{APP_VERSION}</span>
           <p className="muted sm"><a href={REPO_URL} target="_blank" rel="noreferrer">View the source code on GitHub</a>.</p>

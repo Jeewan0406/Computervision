@@ -20,6 +20,8 @@ Chat with many AI models in one beautiful app. Start free with no key, add your 
 
 | Feature | What it does |
 |---|---|
+| 📎 **Files and pictures** | Attach or drop **PDF, Word, PowerPoint, Excel**, text and code files: JeeA! reads them in your browser and sends their text (slides with speaker notes, every Excel sheet). Paste a **screenshot** or attach a **picture** in Chat and Compare; it goes to models that can see images. Text copied from Word, PowerPoint or a web page pastes as text. |
+| 🧠 **Thinking levels** | Low, Medium, High, Extra high and Max in every message box. Higher levels give every model critical-thinking steps (split the problem, question assumptions, check every number, give counter-arguments, compare options and sources). Claude and OpenAI reasoning models also get their real effort setting. At **Max**, Chat makes the model review its first answer as a strict expert and rewrite it. |
 | 💬 **Chat** | A standard chat with the model picker inside the chat box and friendly model names ("Llama 3.3 70B", "Gemini 2.5 Flash"): streaming answers, Markdown, tables, code highlighting, the model's reasoning (when it shares it), edit and resend, regenerate, history with search, pin and rename, export to Markdown. |
 | 🌐 **Trusted sources for every question** | Before every question in Chat, Compare, Team and Agent, JeeA! searches **trusted sources only**: recent research (OpenAlex), news and releases from the UN, governments and space agencies, new papers from leading journals, established news organisations (collected every hour by this site's GitHub job), and web search limited to trusted sites if the site owner adds a key. No Wikipedia, blogs or social media. Each source comes with a ready **APA 7th** citation. The 🌐 button switches between **On** (default), **Auto** and **Off**. |
 | 📄 **Export** | Save any answer, or a whole chat, as a **Word** document, **PDF**, **Excel** workbook (tables, text, sources), **PowerPoint** slides, Markdown, or an image (PNG, JPG, SVG). |
@@ -31,13 +33,13 @@ Chat with many AI models in one beautiful app. Start free with no key, add your 
 | ➗ **Maths** | LaTeX formulas, boxed results and coloured citations display properly (KaTeX, loaded only when a message needs it). |
 | 🤖 **Agent** | Give a goal. The agent searches trusted sources first, then plans and uses tools step by step: web pages, exact maths, a JavaScript sandbox, date and time, long-term memory, workspace files, creating web apps, and asking other models. Every step is shown and can be opened. |
 | ⏰ **24/7 agents** | Scheduled agents run on GitHub Actions in your repository, even when your computer is off, and save Markdown reports that the Agent page shows. |
-| 🆓 **Free models** | Works the moment the page opens: the shared Pollinations model needs no sign-up and no key. **Puter** adds hundreds of models (GPT, Claude, Gemini, Llama…) with a free Puter account. With the optional **JeeA Gateway**, the site owner can share free NVIDIA and other models with every visitor. Free models carry a green **Free** tag. |
+| 🆓 **Free models** | Works the moment the page opens: the shared Pollinations model and **OVHcloud** (Llama 3.3 70B, gpt-oss 120B, Qwen, DeepSeek and more) need no sign-up and no key; **AI Horde** (volunteers, slow) too. **In your browser**: WebLLM runs open models on your own graphics chip, and Chrome's built-in Gemini Nano is used where Chrome offers it — no server at all. **Puter** adds hundreds of models (GPT, Claude, Gemini, Llama…) with a free Puter account. With the optional **JeeA Gateway**, the site owner can share free NVIDIA and other models with every visitor. Free models carry a green **Free** tag. |
 | 🔑 **API Slots** | Add as many keys as you like for 19 providers, or your own endpoint. Several keys for one provider are rotated, and a key that hits a rate limit is rested while the next one takes over. |
 | ⚖️ **Compare** | Send one prompt to up to 6 models at once. See time to first token, total time, speed and tokens. Vote for the best answer, keep a personal leaderboard, or let an AI judge rank the anonymous answers. |
 | 👥 **Team** | Give different models different roles in one run. Three ways to work: **Pipeline** (one after another), **Mixture** (all answer, one merges) and **Debate** (argue in rounds, a judge decides). Five ready-made teams. |
 | 🧩 **CodeFrame** | Describe an app and watch the code being written, then run it in a locked sandbox. Editor, phone/tablet/desktop sizes, console with "ask the AI to fix these errors", version history, download. |
 | 📈 **Logs** | Every request is recorded: provider, model, key name, status, time to first token, total time and tokens. Charts, filters and CSV/JSON export. No keys or message text are stored in the log. |
-| 🎨 **Design** | A clean "J!" speech-bubble logo on a dzong-maroon tile with a prayer-flag strip, and a Bhutan-inspired "Druk" look: saffron, gold and maroon, a dzong-white light mode, a prayer-flag ribbon and a faint woven-textile pattern. Dark and light themes, 6 accent colours, works on phones, installable as an app (PWA), works offline after the first visit. |
+| 🎨 **Design** | The JeeA! logo (a head whose brain is a network of linked nodes) in the theme's colour, and a Bhutan-inspired "Druk" look: saffron, gold and maroon, a dzong-white light mode, a prayer-flag ribbon and a faint woven-textile pattern. Dark and light themes, 6 accent colours, works on phones, installable as an app (PWA), works offline after the first visit. |
 
 <table>
 <tr>
@@ -81,7 +83,10 @@ You can use any model a provider offers: JeeA! loads the live model list from th
 | Provider | Access | Notes |
 |---|---|---|
 | JeeA Free (Pollinations Classic) | Free, no key | One text model, one request per IP at a time, at least 45 seconds apart ([Pollinations docs](https://github.com/pollinations/pollinations/blob/master/APIDOCS.md)). Good for trying the app. |
-| OVHcloud AI Endpoints | Free, no key | Anonymous use: 2 requests per minute per IP and per model (OVHcloud's limit). Llama, Mistral, Qwen and more. |
+| OVHcloud AI Endpoints | Free, no key | Anonymous use: 2 requests per minute per IP and per model (OVHcloud's limit). 33 models on 2026-11-24, including Llama 3.3 70B, gpt-oss 120B/20B, Qwen3.5 397B, DeepSeek V4.1 Flash, Mistral Small 3.2, Gemma 4 and two Qwen VL models that can see pictures. |
+| AI Horde | Free, no key | A volunteer network (`oai.aihorde.net`, anonymous key). It works from the browser but answers took about 50 seconds in our check, volunteers could see prompts (never send private data), and unfiltered community models are hidden. |
+| In your browser (WebLLM) | Free, runs on your device | Open models (Llama 3.2, Qwen3, Phi-4 mini, Gemma…) run on your graphics chip through WebGPU, in a background worker ([WebLLM](https://github.com/mlc-ai/web-llm)). Needs a recent Chrome or Edge on a computer; the first use downloads the model (about 0.7–5 GB), then it works offline. Small models see about 4,000 tokens, so they get a short version of the instructions and fewer web results. |
+| Chrome built-in AI (Gemini Nano) | Free, runs on your device | Used only where Chrome offers its built-in Prompt API (`LanguageModel`) on a supported computer. JeeA! checks this when you send and explains if it cannot run (Chromium has the interface but no model). |
 | Puter | Free, no key in JeeA! | Each person signs in with a free Puter account; usage counts against their own Puter allowance ("user pays"). Puter.js is bundled at a pinned version and loads only when chosen. |
 | JeeA Free+ (your gateway) | Free for visitors | Appears when `public/jeea.config.json` names your gateway. It uses **your** free keys (NVIDIA and others), so every visitor shares their limits. See below. |
 | Google Gemini · Groq · OpenRouter (":free" models) · Mistral · Cerebras · Ollama Cloud · Z.ai (GLM flash models) · SiliconFlow (some models) · Hugging Face · Cohere · SambaNova · NVIDIA NIM | Free tier with a key | Free tiers and their limits are set by each provider and change often. Check the provider's page. NVIDIA may block direct browser calls; use the CORS proxy or the gateway. |
@@ -98,7 +103,8 @@ No AI provider offers truly unlimited free use, and an API key placed in a publi
 3. Open **Settings → Variables and Secrets → Add**. Add `NVIDIA_API_KEY` with type **Secret** (your key from build.nvidia.com). Optionally add `GROQ_API_KEY`, `GEMINI_API_KEY`, `CEREBRAS_API_KEY`, `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` as secrets, and `ALLOWED_ORIGINS` (type Text) = `https://<your-user>.github.io`. **Deploy**.
 4. *(Free, no extra key)* In the Worker's **Settings**, look for **Bindings** and add a **Workers AI** binding named `AI` (the dashboard wording may differ slightly; with Wrangler it is `"ai": { "binding": "AI" }` in the config file). This adds Cloudflare Workers AI models (Llama 3.3 70B, Llama 4 Scout, Mistral Small 3.1, QwQ 32B, DeepSeek R1 Distill, Qwen 2.5 Coder, GPT-OSS 120B), which use Cloudflare's free allowance of 10,000 Neurons per day ([Cloudflare pricing docs](https://github.com/cloudflare/cloudflare-docs/blob/production/src/content/docs/workers-ai/platform/pricing.mdx)).
 5. *(Optional, full web search)* Add the secret `TAVILY_API_KEY` (a key from tavily.com). JeeA!'s search then also uses web search through `POST /v1/search`, **limited to trusted sites** (the `TRUSTED_DOMAINS` list in the Worker, plus government, university and intergovernmental addresses), cached for 10 minutes and limited to 6 searches per visitor per minute (`SEARCH_PER_MINUTE`). Without it, the app still searches OpenAlex and the trusted-news index. With the Workers AI binding from step 4, visitors can also make images (FLUX.1 [schnell], `IMAGE_PER_MINUTE`, default 3).
-6. Copy the Worker address (`https://jeea-gateway.<name>.workers.dev`) into `public/jeea.config.json` → `"gateway"`, and commit. After the site redeploys, every visitor sees **JeeA Free+** in the model picker.
+6. *(Free, no key, on by default)* The Worker also passes on the **Kilo AI Gateway's free models** (ids ending in `:free`, shown as `kilo:…`). Kilo answers these without a key but does not allow direct browser calls, which is why they go through the gateway. Set the text variable `KILO_FREE` to `off` to hide them.
+7. Copy the Worker address (`https://jeea-gateway.<name>.workers.dev`) into `public/jeea.config.json` → `"gateway"`, and commit. After the site redeploys, every visitor sees **JeeA Free+** in the model picker.
 
 The visitors share your free limits, so for many users add more providers' keys or keep the per-minute limit low.
 
@@ -151,7 +157,7 @@ JeeA! follows the model Anthropic documents for Claude: account-wide instruction
 **Projects** (top of the left panel, on every page): create a project, give it instructions and files, and every new conversation made while it is selected joins it. Any conversation can be moved in or out with the folder button. A project has:
 - a **name**, and a **description** that is only for you and is never sent to a model;
 - **instructions** for every conversation in it (up to 8,000 characters);
-- **files**: text and code files, PDF (with page numbers; scanned PDFs without a text layer cannot be read) and Word .docx, read in your browser and kept only there;
+- **files**: text and code files, PDF (with page numbers; scanned PDFs without a text layer cannot be read), Word .docx, PowerPoint .pptx and Excel .xlsx, read in your browser and kept only there;
 - a **space for files** per request: Small ≈3k, Medium ≈8k or Large ≈20k tokens. Files that fit are sent whole. Larger files are split into passages, and only the passages most related to the question are sent, labelled with file name and page (`src/lib/instructions.ts`, BM25 ranking).
 
 **Which instruction wins.** Every request says so: the answer rules' hard rules (sections 0 to 8) first; then the most specific instruction wins: this conversation's own instructions, then the project's, then your custom instructions. These may change the rules' preferences (sections 9 to 12). In CodeFrame, the code-output format always wins. Badges under the chat box show which layers are active.
@@ -260,7 +266,7 @@ Requires Node.js 20.19+ or 22.12+ (CI uses Node 22).
 ```
 src/
   lib/            core logic
-    providers.ts    provider catalog (3 no-key providers, 19 with keys)
+    providers.ts    provider catalog (no-key, in-browser and keyed providers)
     models.ts       friendly model names and Free detection
     web.ts          search: when to search, OpenAlex and gateway search, trusted-site filter, prompt
     webrun.ts       runs the search for Chat, Compare, Team and Agent (stoppable, logged)
@@ -272,7 +278,11 @@ src/
     instructions.ts custom-instruction and project text, priority note, file passages (BM25)
     standard.ts     the built-in JeeA! answer standard
     projects.ts     projects store (IndexedDB) and their files
-    extract.ts      text from PDF (pdf.js), Word (mammoth) and text files
+    extract.ts      text from PDF (pdf.js), Word (mammoth), PowerPoint and Excel (fflate) and text files
+    attach.ts       paste rules and picture resizing for the message box
+    thinking.ts     thinking levels: critical-thinking steps, Claude effort, OpenAI reasoning effort, Max review
+    local.ts        in-browser models: WebLLM (with webllm.worker.ts) and Chrome built-in AI
+    small.ts        short instructions for small models
     context.ts      builds the personal part of every request
     math.ts         KaTeX maths, loaded on demand
   rules/          the site owner's answer rules and the JeeA! note (Markdown)
@@ -286,7 +296,7 @@ src/
     logs.ts         activity log (IndexedDB)
     markdown.ts     safe Markdown + code highlighting
   views/          Chat, Agent, Compare, Team, CodeFrame, API Slots, Logs
-agents/           24/7 runner (run.mjs), tasks.json, and the trusted-news collector (news.mjs, newslib.mjs, feeds.json)
+agents/           24/7 runner (run.mjs), tasks.json, the trusted-news collector (news.mjs, newslib.mjs, feeds.json) and the free-model check (probe-free.mjs)
   components/     model picker, messages, composer, sidebar, dialogs, editor
 public/           logo, icons, manifest, service worker
 proxy/            Cloudflare Workers: CORS proxy (cloudflare-worker.js) and JeeA Gateway (jeea-gateway.js)

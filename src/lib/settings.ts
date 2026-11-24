@@ -5,6 +5,7 @@ import { BUILTIN_PROVIDERS, GATEWAY_ID, KEYLESS_ID } from './providers';
 import { prettyModel, isFreeModel, routeLabel } from './models';
 import { uid } from './utils';
 import type { WebMode } from './web';
+import type { ThinkLevel } from './thinking';
 
 export type Theme = 'system' | 'dark' | 'light';
 export type Accent = 'druk' | 'violet' | 'blue' | 'emerald' | 'rose' | 'amber';
@@ -31,6 +32,8 @@ export interface Settings {
   webMode: WebMode;
   /** Use established news organisations (BBC, NPR, DW...) for recent events, besides official and scholarly sources. */
   trustedNews: boolean;
+  /** How hard models think before answering: low, medium (default), high, xhigh, max. */
+  thinking: ThinkLevel;
   /** The user's own custom instructions, sent to every model in the chosen areas. */
   custom: CustomInstructions;
   /** The site owner's answer rules, sent to every model. `text: null` = built-in default. */
@@ -78,6 +81,7 @@ const initial: Settings = {
   agentRepo: '',
   webMode: 'on',
   trustedNews: true,
+  thinking: 'medium',
   custom: DEFAULT_CUSTOM,
   answerRules: { enabled: true, text: null },
 };
@@ -221,9 +225,12 @@ export function slotsFor(providerId: string, slots: Slot[] = useSettings.getStat
   return slots.filter((s) => s.providerId === providerId);
 }
 
+/** No key needed: free shared services and models that run in the browser. */
+export const noKey = (p: ProviderDef) => p.access === 'keyless' || p.access === 'local';
+
 /** A provider is usable when it needs no key or has at least one enabled slot. */
 export function isUsable(p: ProviderDef, slots: Slot[] = useSettings.getState().slots) {
-  return p.access === 'keyless' || slots.some((s) => s.providerId === p.id && s.enabled);
+  return noKey(p) || slots.some((s) => s.providerId === p.id && s.enabled);
 }
 
 export const modelKey = (r: ModelRef) => `${r.providerId}::${r.model}`;
@@ -247,7 +254,7 @@ export function isFree(r: ModelRef): boolean {
 export function modelsFor(p: ProviderDef, slots: Slot[] = useSettings.getState().slots): { list: string[]; live: boolean } {
   const live = new Set<string>();
   for (const s of slots) if (s.providerId === p.id && s.models?.length) s.models.forEach((m) => live.add(m));
-  if (p.access === 'keyless') (liveModels.get(p.id) ?? []).forEach((m) => live.add(m));
+  if (noKey(p)) (liveModels.get(p.id) ?? []).forEach((m) => live.add(m));
   if (live.size) return { list: [...live], live: true };
   return { list: p.suggestedModels, live: false };
 }
@@ -272,7 +279,7 @@ export function setLiveModels(providerId: string, ids: string[]) {
 export function usableModelRefs(limit = 6): ModelRef[] {
   const { slots } = useSettings.getState();
   const providers = allProviders().filter((p) => isUsable(p, slots));
-  const keyed = providers.filter((p) => p.access !== 'keyless');
+  const keyed = providers.filter((p) => !noKey(p));
   const refs: ModelRef[] = [];
   const seen = new Set<string>();
   const push = (r: ModelRef) => {

@@ -3,7 +3,7 @@ import type { WebSource } from './web';
 
 /** How the app talks to a provider. Almost every provider speaks the OpenAI
  * "chat/completions" dialect; Anthropic has its own "messages" API. */
-export type ProviderKind = 'openai' | 'anthropic' | 'puter';
+export type ProviderKind = 'openai' | 'anthropic' | 'puter' | 'browser';
 
 /** How a user can get access to a provider. */
 export type Access = 'keyless' | 'free-tier' | 'paid' | 'local';
@@ -43,6 +43,8 @@ export interface ProviderDef {
   freeSuffixOnly?: boolean;
   /** When set, only these model ids are free on this provider. */
   freeModels?: string[];
+  /** Regular expression (text) of model ids to hide from the live list. */
+  hideModels?: string;
 }
 
 export type SlotStatus = 'unknown' | 'ok' | 'error' | 'cooldown';
@@ -79,6 +81,8 @@ export interface GenParams {
   temperature?: number;
   maxTokens?: number;
   topP?: number;
+  /** Thinking level; sent as the provider's effort setting where the model has one. */
+  effort?: import('./thinking').ThinkLevel;
 }
 
 export interface MsgMeta {
@@ -95,10 +99,19 @@ export interface MsgMeta {
 
 export type MsgStatus = 'streaming' | 'done' | 'error' | 'stopped';
 
+/** A picture sent with a message (made smaller in the browser first). */
+export interface ImageAtt {
+  name: string;
+  /** data: URL, e.g. "data:image/jpeg;base64,..." */
+  dataUrl: string;
+}
+
 export interface Message {
   id: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
+  /** Pictures attached by the user (sent to models that can see images). */
+  images?: ImageAtt[];
   reasoning?: string;
   model?: ModelRef;
   meta?: MsgMeta;
