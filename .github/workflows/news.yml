@@ -1,0 +1,41 @@
+# JeeA! trusted news: every hour, reads the feeds in agents/feeds.json
+# (UN and other intergovernmental bodies, governments, peer-reviewed journals
+# and established news organisations) and publishes latest.json to the
+# "news-data" branch. The website searches it before answering.
+# The branch is replaced on every run, so it never grows.
+name: Trusted News
+
+on:
+  schedule:
+    - cron: '41 * * * *' # every hour at :41
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: jeea-news
+  cancel-in-progress: true
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Read trusted feeds
+        run: node agents/news.mjs news-out
+      - name: Publish to the news-data branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd news-out
+          git init -q -b news-data
+          git config user.name "jeea-news[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Trusted news $(date -u +%Y-%m-%dT%H:%MZ)"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" HEAD:news-data

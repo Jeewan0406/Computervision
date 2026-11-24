@@ -1,0 +1,47 @@
+{
+  "about": "Trusted sources read by the News workflow (agents/news.mjs). Each source lists one or more feed addresses; the first that works is used. type: intergovernmental | government | scholarly | news. 'org' is the group author used in APA 7th citations.",
+  "sources": [
+    { "id": "un-news", "org": "United Nations", "site": "UN News", "type": "intergovernmental", "urls": ["https://news.un.org/feed/subscribe/en/news/all/rss.xml"] },
+    { "id": "who", "org": "World Health Organization", "type": "intergovernmental", "urls": ["https://www.who.int/rss-feeds/news-english.xml"] },
+    { "id": "unicef", "org": "UNICEF", "type": "intergovernmental", "urls": ["https://www.unicef.org/press-releases/rss.xml", "https://www.unicef.org/rss.xml"] },
+    { "id": "unhcr", "org": "UNHCR", "type": "intergovernmental", "urls": ["https://www.unhcr.org/rss.xml", "https://www.unhcr.org/news/rss.xml"] },
+    { "id": "unep", "org": "United Nations Environment Programme", "type": "intergovernmental", "urls": ["https://www.unep.org/rss.xml", "https://www.unep.org/news-and-stories/rss.xml"] },
+    { "id": "wmo", "org": "World Meteorological Organization", "type": "intergovernmental", "urls": ["https://wmo.int/rss.xml", "https://wmo.int/news/rss.xml"] },
+    { "id": "imf", "org": "International Monetary Fund", "type": "intergovernmental", "urls": ["https://www.imf.org/en/News/RSS?Language=ENG", "https://www.imf.org/en/news/rss"] },
+    { "id": "worldbank", "org": "World Bank", "type": "intergovernmental", "urls": ["https://www.worldbank.org/en/news/rss.xml", "https://www.worldbank.org/en/news/all.rss"] },
+    { "id": "fao", "org": "Food and Agriculture Organization of the United Nations", "type": "intergovernmental", "urls": ["https://www.fao.org/newsroom/rss/en", "https://www.fao.org/news/rss-feed/en/"] },
+    { "id": "wfp", "org": "World Food Programme", "type": "intergovernmental", "urls": ["https://www.wfp.org/rss.xml"] },
+    { "id": "iaea", "org": "International Atomic Energy Agency", "type": "intergovernmental", "urls": ["https://www.iaea.org/feeds/topnews", "https://www.iaea.org/newscenter/news/rss"] },
+    { "id": "reliefweb", "org": "ReliefWeb (UN OCHA)", "type": "intergovernmental", "urls": ["https://reliefweb.int/headlines/rss.xml", "https://reliefweb.int/updates/rss.xml"] },
+    { "id": "unfccc", "org": "United Nations Framework Convention on Climate Change", "type": "intergovernmental", "urls": ["https://unfccc.int/rss.xml"] },
+    { "id": "oecd", "org": "OECD", "type": "intergovernmental", "urls": ["https://www.oecd.org/newsroom/index.xml", "https://www.oecd.org/en/about/newsroom.rss"] },
+    { "id": "adb", "org": "Asian Development Bank", "type": "intergovernmental", "urls": ["https://www.adb.org/news/rss", "https://www.adb.org/rss/news.xml"] },
+
+    { "id": "nasa", "org": "NASA", "type": "government", "urls": ["https://www.nasa.gov/news-release/feed/", "https://www.nasa.gov/feed/"] },
+    { "id": "esa", "org": "European Space Agency", "type": "intergovernmental", "urls": ["https://www.esa.int/rssfeed/TopNews", "https://www.esa.int/rssfeed/Our_Activities/Space_Science"] },
+    { "id": "cdc", "org": "Centers for Disease Control and Prevention", "type": "government", "urls": ["https://tools.cdc.gov/api/v2/resources/media/132608.rss"] },
+    { "id": "govuk", "org": "GOV.UK", "type": "government", "urls": ["https://www.gov.uk/search/news-and-communications.atom"] },
+    { "id": "eu-commission", "org": "European Commission", "type": "government", "urls": ["https://ec.europa.eu/commission/presscorner/api/rss?language=en", "https://ec.europa.eu/commission/presscorner/home/en/rss"] },
+    { "id": "india-pib", "org": "Press Information Bureau, Government of India", "type": "government", "urls": ["https://pib.gov.in/RssMain.aspx?ModId=6&Lang=1&Regid=3"] },
+
+    { "id": "nature", "org": "Nature", "type": "scholarly", "urls": ["https://www.nature.com/nature.rss"] },
+    { "id": "science", "org": "Science", "type": "scholarly", "urls": ["https://www.science.org/action/showFeed?type=etoc&feed=rss&jc=science"] },
+    { "id": "lancet", "org": "The Lancet", "type": "scholarly", "urls": ["https://www.thelancet.com/rssfeed/lancet_online.xml", "https://www.thelancet.com/rssfeed/lancet_current.xml"] },
+    { "id": "nejm", "org": "New England Journal of Medicine", "type": "scholarly", "urls": ["https://www.nejm.org/action/showFeed?jc=nejm&type=etoc&feed=rss"] },
+    { "id": "bmj", "org": "The BMJ", "type": "scholarly", "urls": ["https://www.bmj.com/rss/recent.xml", "https://www.bmj.com/rss/ahead-of-print.xml"] },
+    { "id": "pnas", "org": "Proceedings of the National Academy of Sciences", "type": "scholarly", "urls": ["https://www.pnas.org/action/showFeed?type=etoc&feed=rss&jc=pnas"] },
+    { "id": "plos-one", "org": "PLOS ONE", "type": "scholarly", "urls": ["https://journals.plos.org/plosone/feed/atom"] },
+    { "id": "cell", "org": "Cell", "type": "scholarly", "urls": ["https://www.cell.com/cell/current.rss", "https://www.cell.com/cell/inpress.rss"] },
+
+    { "id": "bbc-world", "org": "BBC News", "type": "news", "urls": ["https://feeds.bbci.co.uk/news/world/rss.xml"] },
+    { "id": "bbc-science", "org": "BBC News", "type": "news", "urls": ["https://feeds.bbci.co.uk/news/science_and_environment/rss.xml"] },
+    { "id": "npr-world", "org": "NPR", "type": "news", "urls": ["https://feeds.npr.org/1004/rss.xml"] },
+    { "id": "dw", "org": "Deutsche Welle", "type": "news", "urls": ["https://rss.dw.com/rdf/rss-en-world", "https://rss.dw.com/xml/rss-en-world"] },
+    { "id": "aljazeera", "org": "Al Jazeera", "type": "news", "urls": ["https://www.aljazeera.com/xml/rss/all.xml"] },
+    { "id": "france24", "org": "France 24", "type": "news", "urls": ["https://www.france24.com/en/rss"] },
+    { "id": "guardian-world", "org": "The Guardian", "type": "news", "urls": ["https://www.theguardian.com/world/rss"] },
+    { "id": "cbc-world", "org": "CBC News", "type": "news", "urls": ["https://www.cbc.ca/webfeed/rss/rss-world"] },
+    { "id": "kuensel", "org": "Kuensel", "type": "news", "urls": ["https://kuenselonline.com/feed/"] },
+    { "id": "bbs", "org": "Bhutan Broadcasting Service", "type": "news", "urls": ["https://www.bbs.bt/feed/", "https://www.bbs.bt/news/?feed=rss2"] }
+  ]
+}
