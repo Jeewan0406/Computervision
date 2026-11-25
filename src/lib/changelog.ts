@@ -1,5 +1,5 @@
 /** In-app release log ("What's new"). Mirrors CHANGELOG.md. */
-export const APP_VERSION = '1.11.0';
+export const APP_VERSION = '1.12.0';
 
 export interface Release {
   version: string;
@@ -9,6 +9,17 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
+  {
+    version: '1.12.0',
+    date: '2026-11-25',
+    title: 'A public website anyone can register for',
+    items: [
+      { tag: 'new', feature: 'One-button set-up', text: 'The site owner can now switch on accounts and the shared free models with one GitHub button ("Set up accounts and free models"). It creates the accounts database and the JeeA Gateway on the owner\'s free Cloudflare account, connects the site and republishes it.' },
+      { tag: 'new', feature: 'Create a free account', text: 'When accounts are on, the home screen shows "Create a free account" and "Sign in" buttons, and greets signed-in people with today\'s use.' },
+      { tag: 'improved', feature: 'Easier to find', text: 'Search engines and link previews now get a clear title, description, social card picture and structured data, plus a sitemap.' },
+      { tag: 'fixed', feature: 'Logo on GitHub', text: 'The logo at the top of the GitHub page was broken since 1.9.0; it now shows the new logo in light and dark mode, and the screenshots show the current app.' },
+    ],
+  },
   {
     version: '1.11.0',
     date: '2026-11-25',

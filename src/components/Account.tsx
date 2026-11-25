@@ -18,10 +18,11 @@ export function AccountButton() {
   const config = useAccount((s) => s.config);
   const user = useAccount((s) => s.user);
   const openModal = useUI((s) => s.openModal);
+  const set = useAccount((s) => s.set);
   if (!config?.accounts) return null;
   const label = user ? `${user.role === 'owner' ? 'Owner' : user.name}: account` : 'Sign in or register';
   return (
-    <button className={`icon-btn account-btn${user ? ' signed-in' : ''}`} title={label} aria-label={label} onClick={() => openModal('account')}>
+    <button className={`icon-btn account-btn${user ? ' signed-in' : ''}`} title={label} aria-label={label} onClick={() => { set({ startTab: 'signin' }); openModal('account'); }}>
       {user?.role === 'owner' ? <Crown size={16} /> : user ? <span className="account-initial">{user.name.slice(0, 1).toUpperCase()}</span> : <UserRound size={17} />}
     </button>
   );
@@ -87,7 +88,7 @@ type Tab = 'signin' | 'register' | 'owner';
 function SignedOut() {
   const config = useAccount((s) => s.config);
   const signup = config?.signup ?? 'open';
-  const [tab, setTab] = useState<Tab>('signin');
+  const [tab, setTab] = useState<Tab>(() => useAccount.getState().startTab ?? 'signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -272,6 +273,36 @@ function OwnerAdmin() {
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** On the welcome screen: invite visitors to register, or greet the signed-in person. */
+export function AccountInvite() {
+  const config = useAccount((s) => s.config);
+  const user = useAccount((s) => s.user);
+  const usage = useAccount((s) => s.usage);
+  const set = useAccount((s) => s.set);
+  const openModal = useUI((s) => s.openModal);
+  if (!config?.accounts) return null;
+  const open = (tab: 'signin' | 'register') => {
+    set({ startTab: tab });
+    openModal('account');
+  };
+  if (user) {
+    return (
+      <button className="account-invite signed" onClick={() => open('signin')}>
+        {user.role === 'owner' ? <Crown size={15} /> : <UserRound size={15} />}
+        {user.role === 'owner' ? 'Signed in as the site owner' : `Signed in as ${user.name}${usage ? ` · ${usage.today}/${usage.limit} today` : ''}`}
+      </button>
+    );
+  }
+  return (
+    <div className="account-invite">
+      {config.signup !== 'closed' && (
+        <button className="btn primary" onClick={() => open('register')}><UserPlus size={16} /> {config.signup === 'approval' ? 'Ask for a free account' : 'Create a free account'}</button>
+      )}
+      <button className="btn ghost" onClick={() => open('signin')}><LogIn size={16} /> Sign in</button>
     </div>
   );
 }

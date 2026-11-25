@@ -43,12 +43,14 @@ interface AccountState {
   config: AuthConfig | null;
   /** Shown once after a sign-in ends (expired, blocked...). */
   notice: string | null;
+  /** Tab to show when the Account window opens. */
+  startTab: 'signin' | 'register' | 'owner';
   set: (patch: Partial<Omit<AccountState, 'set'>>) => void;
 }
 
 export const useAccount = create<AccountState>()(
   persist(
-    (set) => ({ token: null, user: null, usage: null, config: null, notice: null, set: (patch) => set(patch) }),
+    (set) => ({ token: null, user: null, usage: null, config: null, notice: null, startTab: 'signin', set: (patch) => set(patch) }),
     {
       name: 'jeea.account',
       version: 1,

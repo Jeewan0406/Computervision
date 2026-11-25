@@ -1,6 +1,9 @@
 <div align="center">
 
-<img src="public/favicon.svg" width="88" alt="JeeA! logo" />
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.png" />
+  <img src="docs/logo-light.png" width="260" alt="JeeA! logo: a head whose brain is a network of linked nodes, with the words JeeA! Many AIs. One place." />
+</picture>
 
 # JeeA!
 
@@ -11,6 +14,8 @@ Chat with many AI models in one beautiful app. Start free with no key, add your 
 **Live site:** https://jeewan0406.github.io/JeeAI-by-Jeewan/ *(works after GitHub Pages is switched on, see [Deploy](#deploy-on-github-pages))*
 
 **Repository:** https://github.com/Jeewan0406/JeeAI-by-Jeewan (renamed from `Computervision` on 25 November 2026; please update bookmarks and links to the new addresses)
+
+**Anyone can register and use it**, once the owner has run the one-time set-up in [Make it a public website](#make-it-a-public-website).
 
 <img src="docs/screenshots/chat.jpg" alt="JeeA! chat" width="900" />
 
@@ -47,6 +52,10 @@ Chat with many AI models in one beautiful app. Start free with no key, add your 
 
 <table>
 <tr>
+<td><img src="docs/screenshots/account-register.jpg" alt="Account window: register with name, email and password" /></td>
+<td><img src="docs/screenshots/account-owner.jpg" alt="Owner's admin panel: registration mode, registered users only, daily limit and the user list" /></td>
+</tr>
+<tr>
 <td><img src="docs/screenshots/rules.jpg" alt="An answer following the answer rules: coloured author-year citations, a boxed formula and research sources" /></td>
 <td><img src="docs/screenshots/sources.jpg" alt="Trusted sources: UN News and BBC News chips with APA 7th citations" /></td>
 </tr>
@@ -59,7 +68,7 @@ Chat with many AI models in one beautiful app. Start free with no key, add your 
 <td><img src="docs/screenshots/images.jpg" alt="Images page: describe a picture, choose a model and shape" /></td>
 </tr>
 <tr>
-<td><img src="docs/screenshots/picker.jpg" alt="Model picker inside the chat box with Free tags" /></td>
+<td><img src="docs/screenshots/picker.jpg" alt="Model picker inside the chat box: Auto at the top, then free models with Free tags" /></td>
 <td><img src="docs/screenshots/agent.jpg" alt="Agent view" /></td>
 </tr>
 <tr>
@@ -98,6 +107,30 @@ You can use any model a provider offers: JeeA! loads the live model list from th
 | Ollama · LM Studio | Runs on your computer | Turn on CORS in the local server (see the note in the app). |
 | Your own endpoint | Any | Any OpenAI-compatible `/chat/completions` server, or the Anthropic Messages format. |
 
+## Make it a public website
+
+JeeA! is already on the public web: anyone who finds the address can open it. To let **anyone register and use it** (with you, the owner, in charge), run the one-time set-up below. One button in GitHub does the technical part: it creates the accounts database and the JeeA Gateway on your free Cloudflare account, connects the site to it and republishes the site.
+
+**One-time set-up (about 10 minutes; Cloudflare's menu names may differ slightly):**
+1. **Cloudflare account.** Sign up free at cloudflare.com. Open **Workers & Pages** once and choose your *workers.dev* subdomain (Cloudflare needs it before the first deploy).
+2. **API token.** In Cloudflare: **My Profile → API Tokens → Create Token** → template **"Edit Cloudflare Workers"**, and add the permission **Account → D1 → Edit** (and **Workers AI** if offered, for the free Cloudflare models). Copy the token.
+3. **Account ID.** Copy it from the Cloudflare dashboard (shown on the account home or Workers & Pages page).
+4. **GitHub secrets.** In this repository: **Settings → Secrets and variables → Actions → New repository secret**, add:
+   - `CLOUDFLARE_API_TOKEN` — the token from step 2,
+   - `CLOUDFLARE_ACCOUNT_ID` — the ID from step 3,
+   - `JEEA_OWNER_KEY` — your own long passphrase for signing in as the owner.
+   Optional: `NVIDIA_API_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `TAVILY_API_KEY` (more shared models and web search). Never paste these into an issue or a chat.
+5. **Run it.** **Actions → "Set up accounts and free models" → Run workflow.** Choose whether visitors must register first (default yes), who can register (default open) and the daily limit (default 100). About two minutes later the site has a **👤 Account** button and a **Create a free account** button on the home screen.
+6. **Sign in as the owner:** **Account → Owner →** your `JEEA_OWNER_KEY`.
+
+Run the workflow again any time (for example after adding a provider key): people stay signed in.
+
+**Help people find it:**
+- **GitHub page:** on the repository's main page, click ⚙ next to **About**, set **Website** to `https://jeewan0406.github.io/JeeAI-by-Jeewan/`, add a description and topics (for example `ai`, `chatbot`, `llm`). Under **Settings → General → Social preview**, upload `docs/social-preview.png`.
+- **Google:** add the site in Google Search Console (URL-prefix property `https://jeewan0406.github.io/JeeAI-by-Jeewan/`), verify it with the HTML-tag method, and submit `sitemap.xml`. The verification tag is not secret, so it can be added to `index.html`.
+- The page already has a title, description, social card (`og-image.png`), structured data and a sitemap. A `robots.txt` would have no effect here, because search engines read it only at the top of `jeewan0406.github.io`, which is a different repository.
+- **Your own address (optional, paid):** buy a domain (for example `jeeai.app`), add it under **Settings → Pages → Custom domain**, and add the DNS records GitHub shows. Run the set-up workflow again afterwards so the gateway accepts the new address.
+
 ## Accounts: let the public register (you stay the owner)
 
 Anyone can open JeeA! and use it with their own keys or the free no-key services; that costs you nothing. What costs **you** is the **JeeA Gateway**: the free models you share with your own keys and allowances. Accounts control who may use those.
@@ -109,7 +142,7 @@ Anyone can open JeeA! and use it with their own keys or the free no-key services
 - **Registered users only:** when on, visitors see a sign-in screen and the gateway refuses anyone not signed in. When off, everyone can use the site; signed-in users get their own daily allowance.
 - **Daily limit per user** (default 100 requests), and per person: approve, block (signs them out everywhere at once), unblock, own limit, set a new password, delete.
 
-**Set-up (once, in your Cloudflare dashboard; menu names may differ slightly):**
+**Set-up:** the easy way is the GitHub button in [Make it a public website](#make-it-a-public-website). By hand instead (Cloudflare dashboard; menu names may differ slightly):
 1. Deploy the JeeA Gateway (steps in the next section) and put its address in `public/jeea.config.json`.
 2. Create a **D1 database** (Storage & Databases → D1), then in the Worker's **Settings → Bindings** add it as a D1 binding named **`DB`**. The Worker creates its tables itself.
 3. In **Settings → Variables and Secrets** add two **secrets**: **`AUTH_SECRET`** (a long random text; it signs sign-ins) and **`OWNER_KEY`** (your own long passphrase). Never put them in the repository or share them in a chat.
@@ -337,7 +370,7 @@ src/
     logs.ts         activity log (IndexedDB)
     markdown.ts     safe Markdown + code highlighting
   views/          Chat, Agent, Compare, Team, CodeFrame, API Slots, Logs
-agents/           24/7 runner (run.mjs), tasks.json, the trusted-news collector (news.mjs, newslib.mjs, feeds.json) and the free-model check (probe-free.mjs)
+agents/           24/7 runner (run.mjs), tasks.json, the trusted-news collector (news.mjs, newslib.mjs, feeds.json), the free-model check (probe-free.mjs) and the one-button gateway set-up (deploy-gateway.mjs, run by .github/workflows/gateway.yml)
   components/     model picker, messages, composer, sidebar, dialogs, editor
 public/           logo, icons, manifest, service worker
 proxy/            Cloudflare Workers: CORS proxy (cloudflare-worker.js) and JeeA Gateway (jeea-gateway.js)

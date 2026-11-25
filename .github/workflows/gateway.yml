@@ -1,0 +1,95 @@
+# Run by hand (Actions -> "Set up accounts and free models" -> Run workflow).
+# Deploys the JeeA Gateway to your Cloudflare account, creates the accounts
+# database, connects the site to it and republishes the site, so anyone can
+# register and use it. Safe to run again: it keeps people signed in.
+#
+# Before the first run, add these repository secrets
+# (Settings -> Secrets and variables -> Actions -> New repository secret):
+#   CLOUDFLARE_API_TOKEN   a Cloudflare API token (Workers Scripts: Edit, D1: Edit)
+#   CLOUDFLARE_ACCOUNT_ID  your Cloudflare account ID
+#   JEEA_OWNER_KEY         your own long passphrase for the owner's sign-in
+# Optional: NVIDIA_API_KEY, GROQ_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY,
+# TAVILY_API_KEY and the other keys listed in agents/deploy-gateway.mjs.
+name: Set up accounts and free models
+
+on:
+  workflow_dispatch:
+    inputs:
+      require_account:
+        description: 'Visitors must register and sign in before using the site'
+        type: boolean
+        default: true
+      signup_mode:
+        description: 'Who can register'
+        type: choice
+        options: [open, approval, closed]
+        default: open
+      daily_limit:
+        description: 'Requests per person per day on the shared models'
+        default: '100'
+      workers_ai:
+        description: 'Add free Cloudflare models and image making (Workers AI)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: gateway
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - id: gw
+        run: node agents/deploy-gateway.mjs
+        env:
+          WRANGLER_SEND_METRICS: 'false'
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          JEEA_OWNER_KEY: ${{ secrets.JEEA_OWNER_KEY }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          CEREBRAS_API_KEY: ${{ secrets.CEREBRAS_API_KEY }}
+          MISTRAL_API_KEY: ${{ secrets.MISTRAL_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          SAMBANOVA_API_KEY: ${{ secrets.SAMBANOVA_API_KEY }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          COHERE_API_KEY: ${{ secrets.COHERE_API_KEY }}
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+          ZAI_API_KEY: ${{ secrets.ZAI_API_KEY }}
+          SILICONFLOW_API_KEY: ${{ secrets.SILICONFLOW_API_KEY }}
+          OVH_AI_KEY: ${{ secrets.OVH_AI_KEY }}
+          KILO_API_KEY: ${{ secrets.KILO_API_KEY }}
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+          REQUIRE_ACCOUNT: ${{ inputs.require_account && 'on' || 'off' }}
+          SIGNUP_MODE: ${{ inputs.signup_mode }}
+          DAILY_LIMIT: ${{ inputs.daily_limit }}
+          WORKERS_AI: ${{ inputs.workers_ai }}
+      - name: Save the gateway address in the site
+        if: steps.gw.outputs.changed == 'true'
+        run: |
+          git config user.name "jeea-bot"
+          git config user.email "jeea-bot@users.noreply.github.com"
+          git add public/jeea.config.json
+          git commit -m "Connect the site to its JeeA Gateway"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Republish the site
+        run: gh workflow run deploy.yml --ref "$GITHUB_REF_NAME"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Done
+        run: |
+          echo "### JeeA Gateway is ready" >> "$GITHUB_STEP_SUMMARY"
+          echo "Gateway: ${{ steps.gw.outputs.url }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Site: https://${GITHUB_REPOSITORY_OWNER,,}.github.io/${GITHUB_REPOSITORY#*/}/ (ready in about a minute)" >> "$GITHUB_STEP_SUMMARY"
+          echo "Sign in as owner: Account (bottom left) -> Owner -> your JEEA_OWNER_KEY." >> "$GITHUB_STEP_SUMMARY"

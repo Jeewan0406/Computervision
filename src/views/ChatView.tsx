@@ -1,3 +1,4 @@
+import { AccountInvite } from '../components/Account';
 import { isAuto } from '../lib/router';
 import { useState } from 'react';
 import { Bot, Code2, Columns3, KeyRound, Users } from 'lucide-react';
@@ -6,7 +7,7 @@ import { ThinkingPicker } from '../components/Thinking';
 import { REVIEW_PROMPT } from '../lib/thinking';
 import { currentThinking, thinkingText } from '../lib/thinkrun';
 import { useData } from '../lib/data';
-import { useSettings, getProvider, isUsable, modelLabel } from '../lib/settings';
+import { useSettings, getProvider, isUsable, modelLabel, useRuntime } from '../lib/settings';
 import { useUI } from '../lib/ui';
 import { stopJobs } from '../lib/runner';
 import { streamReply } from '../lib/reply';
@@ -148,6 +149,7 @@ const SUGGESTIONS = [
 function Welcome({ model, onPick }: { model: ModelRef; onPick: (text: string) => void }) {
   const setView = useUI((s) => s.setView);
   const slots = useSettings((s) => s.slots);
+  useRuntime((s) => s.v); // re-check when the site's gateway finishes loading
   const p = getProvider(model.providerId);
   const ready = p ? isUsable(p, slots) : false;
   return (
@@ -160,6 +162,7 @@ function Welcome({ model, onPick }: { model: ModelRef; onPick: (text: string) =>
           <span className={`pulse-dot${ready ? ' green' : ''}`} />
           {ready ? `${p?.name} is ready` : `No key yet for ${p?.name ?? 'this provider'}`}
         </div>
+        <AccountInvite />
       </div>
       <div className="suggest-grid">
         {SUGGESTIONS.map((s) => (

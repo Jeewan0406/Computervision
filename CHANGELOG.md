@@ -2,6 +2,16 @@
 
 All notable changes to JeeA! are listed here. The same notes appear in the app under **What's new** (✨).
 
+## 1.12.0 — 2026-11-25 — A public website anyone can register for
+
+### New
+- **One-button set-up** (`.github/workflows/gateway.yml`, `agents/deploy-gateway.mjs`): "Set up accounts and free models" uses Wrangler 4.160.0 with the owner's `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` GitHub secrets to find or create the D1 database `jeea-accounts`, deploy the Worker with the D1 binding `DB`, the Workers AI binding `AI` (optional) and the site's address in `ALLOWED_ORIGINS` (plus a custom domain from `public/CNAME`), set `AUTH_SECRET` once (kept on later runs, so sign-ins survive), `OWNER_KEY` from `JEEA_OWNER_KEY` and any provider keys present, write the Worker's address into `public/jeea.config.json`, and republish the site. Secret values are never printed; Wrangler telemetry is off.
+- **Home screen:** "Create a free account" / "Sign in" buttons when accounts are on; a greeting with today's use when signed in.
+- **Search and link previews:** canonical address, fuller description, Open Graph and Twitter card with `og-image.png`, schema.org `WebApplication` data, a text description for crawlers without JavaScript, and `sitemap.xml`.
+
+### Fixed
+- The README logo pointed to `public/favicon.svg`, removed in 1.9.0. It now uses `docs/logo-light.png` / `docs/logo-dark.png` for GitHub's light and dark modes. Screenshots refreshed with the current app; `docs/social-preview.png` added for the repository's social preview.
+
 ## 1.11.0 — 2026-11-25 — Accounts: the public can register; the owner stays in control
 
 ### New

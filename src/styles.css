@@ -1052,3 +1052,5 @@ label.chip { cursor: pointer; }
 .account-gate-head { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; margin-bottom: 18px; }
 .account-gate-head h1 { margin: 4px 0 0; font-size: 28px; }
 .row.between { justify-content: space-between; gap: 8px; }
+.account-invite { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 14px; }
+.account-invite.signed { display: inline-flex; align-items: center; gap: 7px; margin: 12px auto 0; padding: 6px 14px; border-radius: 999px; font-size: 13px; color: var(--text-2); background: var(--surface-2); border: 1px solid var(--border); }
