@@ -2,8 +2,9 @@
 // account and connects the site to it, so anyone can register and use the
 // site's shared free models. Run by .github/workflows/gateway.yml.
 //
-// Needs the GitHub secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID
-// (and JEEA_OWNER_KEY for the owner's sign-in). Steps:
+// Needs the GitHub secret CLOUDFLARE_API_TOKEN (and JEEA_OWNER_KEY for the
+// owner's sign-in). CLOUDFLARE_ACCOUNT_ID is optional: when it is not set, the
+// account is found from the token, as Wrangler does. Steps:
 //  1. find or create the D1 database "jeea-accounts" (accounts are stored there);
 //  2. write a Wrangler config (D1 binding DB, optional Workers AI binding AI,
 //     the site's address in ALLOWED_ORIGINS, the sign-up settings);
@@ -61,8 +62,8 @@ export function gatewayConfig({ main, dbId, origin, signup = 'open', requireAcco
   ].join('\n');
 }
 
-/** The GitHub secrets the deploy cannot run without. */
-export const REQUIRED_SECRETS = ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID'];
+/** The GitHub secret the deploy cannot run without. The Account ID is found from the token when not given. */
+export const REQUIRED_SECRETS = ['CLOUDFLARE_API_TOKEN'];
 
 /**
  * Checks the secrets before anything runs. Returns the names that are missing,
@@ -81,6 +82,19 @@ export function checkSecrets(env) {
     problems.push('CLOUDFLARE_API_TOKEN contains a space. Paste only the token itself, with nothing before or after it.');
   }
   return { missing, problems };
+}
+
+/**
+ * Picks the account from Cloudflare's list of accounts the token can reach.
+ * Returns { id } when there is exactly one, or { error } in plain English.
+ */
+export function pickAccount(accounts) {
+  const list = (Array.isArray(accounts) ? accounts : []).filter((a) => a && typeof a.id === 'string' && a.id);
+  if (list.length === 1) return { id: list[0].id };
+  if (!list.length) {
+    return { error: 'The API token cannot see any Cloudflare account. Edit the token in Cloudflare (My Profile → API Tokens → your token → Edit) and, under the Account permissions, set "Include" to your account (not empty). Then save the token and run this workflow again.' };
+  }
+  return { error: `The API token can reach ${list.length} Cloudflare accounts, so the set-up cannot guess which one to use. Add the GitHub secret CLOUDFLARE_ACCOUNT_ID with the ID of the account you want (Settings → Secrets and variables → Actions → Repository secrets), then run this workflow again.` };
 }
 
 /** Put the gateway address into the site config; returns true when it changed. */
@@ -127,12 +141,28 @@ async function main() {
   // Trim stray spaces or line breaks from pasted secrets (Wrangler and the API use them as they are).
   for (const k of [...REQUIRED_SECRETS, 'JEEA_OWNER_KEY']) if (process.env[k]) process.env[k] = process.env[k].trim();
   const found = (k) => (process.env[k] ? 'found' : 'MISSING');
-  console.log(`Secrets: CLOUDFLARE_API_TOKEN ${found('CLOUDFLARE_API_TOKEN')}, CLOUDFLARE_ACCOUNT_ID ${found('CLOUDFLARE_ACCOUNT_ID')}, JEEA_OWNER_KEY ${process.env.JEEA_OWNER_KEY ? 'found' : 'not set (no owner sign-in)'}`);
+  console.log(`Secrets: CLOUDFLARE_API_TOKEN ${found('CLOUDFLARE_API_TOKEN')}, CLOUDFLARE_ACCOUNT_ID ${process.env.CLOUDFLARE_ACCOUNT_ID ? 'found' : 'not set (will be found from the token)'}, JEEA_OWNER_KEY ${process.env.JEEA_OWNER_KEY ? 'found' : 'not set (no owner sign-in)'}`);
   const { missing, problems } = checkSecrets(process.env);
   if (missing.length) {
     fail(`Missing GitHub secret${missing.length > 1 ? 's' : ''}: ${missing.join(' and ')}. Add ${missing.length > 1 ? 'them' : 'it'} under repository Settings → Secrets and variables → Actions → "Repository secrets" → New repository secret, with the name spelled exactly like this. (Not under "Variables", "Environment secrets" or Dependabot.) See README → "Make it a public website".`);
   }
   if (problems.length) fail(problems.join('\n  '));
+
+  // No Account ID given: ask Cloudflare which account the token belongs to (as Wrangler does).
+  if (!process.env.CLOUDFLARE_ACCOUNT_ID) {
+    let accounts;
+    try {
+      accounts = await cloudflare('/accounts?per_page=50');
+    } catch (e) {
+      fail(`Cloudflare did not accept the API token (${e.message}). Check that CLOUDFLARE_API_TOKEN holds the whole token and that the token is active in Cloudflare (My Profile → API Tokens). If the token is fine, add the GitHub secret CLOUDFLARE_ACCOUNT_ID and run this workflow again.`);
+    }
+    const pick = pickAccount(accounts);
+    if (pick.error) fail(pick.error);
+    // Hide the ID in the public log, then let Wrangler use it.
+    if (process.env.GITHUB_ACTIONS) console.log(`::add-mask::${pick.id}`);
+    process.env.CLOUDFLARE_ACCOUNT_ID = pick.id;
+    console.log('   Account ID found from the token.');
+  }
 
   // 1. The accounts database.
   console.log('1/5 Accounts database');

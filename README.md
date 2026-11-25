@@ -114,11 +114,11 @@ JeeA! is already on the public web: anyone who finds the address can open it. To
 **One-time set-up (about 10 minutes; Cloudflare's menu names may differ slightly):**
 1. **Cloudflare account.** Sign up free at cloudflare.com. Open **Workers & Pages** once and choose your *workers.dev* subdomain (Cloudflare needs it before the first deploy).
 2. **API token.** In Cloudflare: **My Profile → API Tokens → Create Token** → template **"Edit Cloudflare Workers"**, and add the permission **Account → D1 → Edit** (and **Workers AI** if offered, for the free Cloudflare models). Copy the token.
-3. **Account ID.** Copy it from the Cloudflare dashboard (shown on the account home or Workers & Pages page).
+3. **Account ID (optional).** The set-up finds it from the token by itself. You only need it if your token can reach more than one Cloudflare account: then copy it from the Cloudflare dashboard (Workers & Pages → Account details, or the long code after `dash.cloudflare.com/` in the address bar).
 4. **GitHub secrets.** In this repository: **Settings → Secrets and variables → Actions → New repository secret**, add:
    - `CLOUDFLARE_API_TOKEN` — the token from step 2,
-   - `CLOUDFLARE_ACCOUNT_ID` — the ID from step 3,
-   - `JEEA_OWNER_KEY` — your own long passphrase for signing in as the owner.
+   - `JEEA_OWNER_KEY` — your own long passphrase for signing in as the owner,
+   - `CLOUDFLARE_ACCOUNT_ID` — only if you need it (step 3).
    Optional: `NVIDIA_API_KEY`, `GROQ_API_KEY`, `GEMINI_API_KEY`, `OPENROUTER_API_KEY`, `TAVILY_API_KEY` (more shared models and web search). Never paste these into an issue or a chat.
 5. **Run it.** **Actions → "Set up accounts and free models" → Run workflow.** Choose whether visitors must register first (default yes), who can register (default open) and the daily limit (default 100). About two minutes later the site has a **👤 Account** button and a **Create a free account** button on the home screen.
 6. **Sign in as the owner:** **Account → Owner →** your `JEEA_OWNER_KEY`.

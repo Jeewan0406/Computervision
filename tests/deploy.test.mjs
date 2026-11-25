@@ -4,17 +4,26 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { checkSecrets, gatewayConfig, setGatewayInConfig, siteOrigin, siteOrigins } from '../agents/deploy-gateway.mjs';
+import { checkSecrets, gatewayConfig, pickAccount, setGatewayInConfig, siteOrigin, siteOrigins } from '../agents/deploy-gateway.mjs';
 
 test('secret check names exactly what is missing or wrong', () => {
   const id = '0123456789abcdef0123456789ABCDEF';
-  assert.deepEqual(checkSecrets({}), { missing: ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID'], problems: [] });
-  assert.deepEqual(checkSecrets({ CLOUDFLARE_API_TOKEN: 't0k', CLOUDFLARE_ACCOUNT_ID: '  ' }).missing, ['CLOUDFLARE_ACCOUNT_ID']);
+  assert.deepEqual(checkSecrets({}), { missing: ['CLOUDFLARE_API_TOKEN'], problems: [] });
+  // The Account ID may be left out: it is found from the token.
+  assert.deepEqual(checkSecrets({ CLOUDFLARE_API_TOKEN: 't0k', CLOUDFLARE_ACCOUNT_ID: '  ' }), { missing: [], problems: [] });
   assert.deepEqual(checkSecrets({ CLOUDFLARE_API_TOKEN: 't0k', CLOUDFLARE_ACCOUNT_ID: `${id}\n` }), { missing: [], problems: [] });
   const bad = checkSecrets({ CLOUDFLARE_API_TOKEN: 't0k', CLOUDFLARE_ACCOUNT_ID: 'me@example.com' });
   assert.equal(bad.missing.length, 0);
   assert.match(bad.problems[0], /32 letters/);
   assert.match(checkSecrets({ CLOUDFLARE_API_TOKEN: 'Bearer t0k', CLOUDFLARE_ACCOUNT_ID: id }).problems[0], /contains a space/);
+});
+
+test('the account is found from the token when there is exactly one', () => {
+  const id = '0123456789abcdef0123456789abcdef';
+  assert.deepEqual(pickAccount([{ id, name: 'Mine' }]), { id });
+  assert.match(pickAccount([]).error, /cannot see any Cloudflare account/);
+  assert.match(pickAccount(undefined).error, /cannot see any/);
+  assert.match(pickAccount([{ id }, { id: id.replace('0', '1') }]).error, /2 Cloudflare accounts.*CLOUDFLARE_ACCOUNT_ID/);
 });
 
 test('Wrangler config: D1 binding, site origin, sign-up settings, optional Workers AI', () => {
