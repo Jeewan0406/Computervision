@@ -83,6 +83,26 @@ jobs:
           git add public/jeea.config.json
           git commit -m "Connect the site to its JeeA Gateway"
           git push origin "HEAD:${GITHUB_REF_NAME}"
+      - name: Check the gateway answers
+        env:
+          URL: ${{ steps.gw.outputs.url }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          origin="https://${OWNER,,}.github.io"
+          for i in $(seq 1 12); do
+            if info=$(curl -fsS -m 15 "$URL/v1") \
+              && cfg=$(curl -fsS -m 15 -H "Origin: $origin" "$URL/v1/auth/config") \
+              && cors=$(curl -fsS -m 15 -D - -o /dev/null -H "Origin: $origin" "$URL/v1/auth/config" | grep -i '^access-control-allow-origin'); then
+              echo "Gateway: $info"
+              echo "Accounts: $cfg"
+              echo "Site allowed: $cors"
+              { echo "### Gateway check: answering"; echo '```'; echo "$info"; echo "$cfg"; echo "$cors"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "Not answering yet (try $i of 12), waiting 10 seconds"
+            sleep 10
+          done
+          echo "::warning::The gateway did not answer within 2 minutes. A new workers.dev address can take a few minutes to start; run this workflow again later."
       - name: Republish the site
         run: gh workflow run deploy.yml --ref "$GITHUB_REF_NAME"
         env:
