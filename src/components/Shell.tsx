@@ -15,7 +15,9 @@ import { stopJobs } from '../lib/runner';
 import { LogoMark, Wordmark, GithubIcon } from './Logo';
 import { Popover } from './Popover';
 
-export const REPO_URL = 'https://github.com/jeewan0406/Computervision';
+// One place for the repository address (src/lib/repo.ts).
+export { REPO_URL } from '../lib/repo';
+import { REPO_URL } from '../lib/repo';
 
 const NAV: { view: View; label: string; icon: typeof MessageSquare; hint: string }[] = [
   { view: 'chat', label: 'Chat', icon: MessageSquare, hint: 'Standard chat' },

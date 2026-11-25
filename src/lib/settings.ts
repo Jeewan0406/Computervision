@@ -168,15 +168,18 @@ export const useSettings = create<Settings & SettingsActions>()(
     }),
     {
       name: 'jeea.settings',
-      version: 4,
+      version: 5,
       // v2: the Bhutan-inspired "druk" palette replaces violet as the default look.
       // v3: web search runs for every question (the old default was "auto").
       // v4: custom instructions in one box.
+      // v5: repository renamed to JeeAI-by-Jeewan.
       migrate: (persisted, version) => {
         const st = (persisted ?? {}) as Partial<Settings>;
         if (version < 2 && (!st.accent || st.accent === 'violet')) st.accent = 'druk';
         if (version < 3 && (!st.webMode || st.webMode === 'auto')) st.webMode = 'on';
         // v4: custom instructions became one box; keep any text from the old two boxes.
+        // v5: the repository was renamed; fix the 24/7 agents setting if it names the old one.
+        if (version < 5 && st.agentRepo && /^jeewan0406\/computervision$/i.test(st.agentRepo.trim())) st.agentRepo = 'Jeewan0406/JeeAI-by-Jeewan';
         if (version < 4 && st.custom) {
           const old = st.custom as Partial<CustomInstructions> & { about?: string; style?: string };
           const text = old.text ?? [old.about, old.style].map((x) => (x ?? '').trim()).filter(Boolean).join('\n\n');

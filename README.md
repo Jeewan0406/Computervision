@@ -8,7 +8,9 @@
 
 Chat with many AI models in one beautiful app. Start free with no key, add your own API keys, compare models side by side, give different models different jobs, build web apps live, and run AI agents, in your browser or 24/7 on GitHub.
 
-**Live site:** https://jeewan0406.github.io/Computervision/ *(works after GitHub Pages is switched on, see [Deploy](#deploy-on-github-pages))*
+**Live site:** https://jeewan0406.github.io/JeeAI-by-Jeewan/ *(works after GitHub Pages is switched on, see [Deploy](#deploy-on-github-pages))*
+
+**Repository:** https://github.com/Jeewan0406/JeeAI-by-Jeewan (renamed from `Computervision` on 25 November 2026; the old site address no longer serves the app)
 
 <img src="docs/screenshots/chat.jpg" alt="JeeA! chat" width="900" />
 

@@ -3,7 +3,8 @@
 // browser access with Access-Control-Allow-Origin: *).
 import { useSettings } from './settings';
 
-export const REPO_URL = 'https://github.com/jeewan0406/Computervision';
+/** The repository (renamed from "Computervision" to "JeeAI-by-Jeewan" on 2026-11-25). */
+export const REPO_URL = 'https://github.com/Jeewan0406/JeeAI-by-Jeewan';
 
 /** "owner/repo" from a github.io address, or null elsewhere. */
 export function detectRepo(): string | null {

@@ -1,5 +1,5 @@
 /** In-app release log ("What's new"). Mirrors CHANGELOG.md. */
-export const APP_VERSION = '1.10.0';
+export const APP_VERSION = '1.10.1';
 
 export interface Release {
   version: string;
@@ -9,6 +9,15 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
+  {
+    version: '1.10.1',
+    date: '2026-11-25',
+    title: 'New home: JeeAI-by-Jeewan',
+    items: [
+      { tag: 'improved', feature: 'Address', text: 'The project moved to github.com/Jeewan0406/JeeAI-by-Jeewan, and the app now lives at jeewan0406.github.io/JeeAI-by-Jeewan. Your chats, keys and settings stay in this browser and carry over, because both addresses are on the same site.' },
+      { tag: 'fixed', feature: '24/7 agents', text: 'If you had typed the old repository name for 24/7 agents, it is updated to the new one automatically.' },
+    ],
+  },
   {
     version: '1.10.0',
     date: '2026-11-24',

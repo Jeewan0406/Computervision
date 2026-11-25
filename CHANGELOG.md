@@ -2,6 +2,15 @@
 
 All notable changes to JeeA! are listed here. The same notes appear in the app under **What's new** (✨).
 
+## 1.10.1 — 2026-11-25 — New home: JeeAI-by-Jeewan
+
+### Changed
+- The repository was renamed from `Computervision` to `JeeAI-by-Jeewan`. Links to the source code now point to https://github.com/Jeewan0406/JeeAI-by-Jeewan, and the live site is https://jeewan0406.github.io/JeeAI-by-Jeewan/. The two hard-coded repository links were merged into one (`src/lib/repo.ts`); everything else finds the repository from the site address or from GitHub Actions' own `GITHUB_REPOSITORY`.
+- Chats, keys and settings carry over: browsers keep them per site (`jeewan0406.github.io`), not per path.
+
+### Fixed
+- Settings migration v5: a 24/7 agents repository saved as `jeewan0406/Computervision` becomes `Jeewan0406/JeeAI-by-Jeewan`.
+
 ## 1.10.0 — 2026-11-24 — Auto model choice and automatic switching
 
 ### New
