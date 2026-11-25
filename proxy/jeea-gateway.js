@@ -31,6 +31,18 @@
  *     universities, journals, established news organisations).
  *  3d. With the Workers AI binding, visitors can also make images (FLUX.1
  *     [schnell]); optional text IMAGE_PER_MINUTE (default 3).
+ *  3e. Optional accounts (people register to use this gateway; you, the
+ *     owner, have no limits and an admin panel inside the app):
+ *       - Storage & Databases -> D1 -> Create database (any name), then in
+ *         the Worker's Settings -> Bindings add a D1 database binding named
+ *         "DB". The tables are created by the Worker on first use.
+ *       - Add the secret AUTH_SECRET: a long random text (signs sign-ins).
+ *       - Add the secret OWNER_KEY: your own long passphrase. Enter it in the
+ *         app (Account -> Owner) to sign in as the owner.
+ *     Optional text: SIGNUP_MODE ("open", "approval" or "closed"; default
+ *     open), REQUIRE_ACCOUNT ("on" = only signed-in people may use this
+ *     gateway), DAILY_LIMIT (requests per user per day, default 100). The
+ *     owner can change all three later in the app without redeploying.
  *  4. Copy the worker URL (https://jeea-gateway.<name>.workers.dev) into
  *     public/jeea.config.json -> "gateway" in your repository.
  *
@@ -43,6 +55,15 @@
  *                                 trusted sites only (501 when TAVILY_API_KEY is not set)
  *   POST /v1/images/generations -> {prompt, steps?} -> {data: [{b64_json}]}
  *                                 FLUX.1 [schnell] on Workers AI (501 without the AI binding)
+ *   Accounts (with the DB binding and AUTH_SECRET):
+ *   GET  /v1/auth/config       -> {accounts, signup, requireAccount, dailyLimit, owner}
+ *   POST /v1/auth/register     -> {name, email, password} -> {token, user} or {pending}
+ *   POST /v1/auth/login        -> {email, password} -> {token, user}
+ *   POST /v1/auth/owner        -> {key} -> {token, user} (the owner: no limits)
+ *   GET  /v1/auth/me           -> {user, usage}
+ *   GET  /v1/admin/users       -> owner only: {users, settings}
+ *   POST /v1/admin/users/:id   -> owner only: {action: approve|block|unblock|delete|limit|password}
+ *   POST /v1/admin/settings    -> owner only: {signup?, requireAccount?, dailyLimit?}
  */
 
 const UPSTREAMS = {
@@ -234,6 +255,278 @@ async function webSearch(env, body, cors) {
   return json(out, 200, cors);
 }
 
+// ------------------------------------------------------------------ accounts
+// Optional sign-up and sign-in, so the public can register and the owner
+// decides who may use this gateway (the owner's keys and free allowances).
+// On when the Worker has a D1 binding named DB and the secret AUTH_SECRET.
+// Passwords are stored only as salted PBKDF2-SHA-256 hashes; sign-ins are
+// HMAC-signed tokens that expire after 30 days.
+
+const enc = new TextEncoder();
+const TOKEN_DAYS = 30;
+const SIGNUP_MODES = ['open', 'approval', 'closed'];
+const b64u = (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const fromB64u = (s) => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)), (c) => c.charCodeAt(0));
+const sha = async (text) => b64u(await crypto.subtle.digest('SHA-256', enc.encode(text)));
+
+/** Compare two texts in constant time (no early exit that leaks how much matched). */
+function sameText(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string' || a.length !== b.length) return false;
+  let d = 0;
+  for (let i = 0; i < a.length; i++) d |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return d === 0;
+}
+
+async function hashPassword(password, salt) {
+  const key = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveBits']);
+  // 100,000 rounds: the most Cloudflare Workers allow for PBKDF2.
+  const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: fromB64u(salt), iterations: 100_000 }, key, 256);
+  return b64u(bits);
+}
+
+async function hmac(secret, data) {
+  const key = await crypto.subtle.importKey('raw', enc.encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  return b64u(await crypto.subtle.sign('HMAC', key, enc.encode(data)));
+}
+
+async function makeToken(env, payload) {
+  const body = b64u(enc.encode(JSON.stringify({ ...payload, exp: Date.now() + TOKEN_DAYS * 86_400_000 })));
+  return `jeea1.${body}.${await hmac(env.AUTH_SECRET, body)}`;
+}
+
+async function readToken(env, token) {
+  const [tag, body, sig] = String(token).split('.');
+  if (tag !== 'jeea1' || !body || !sig) return null;
+  if (!sameText(sig, await hmac(env.AUTH_SECRET, body))) return null;
+  let p;
+  try {
+    p = JSON.parse(new TextDecoder().decode(fromB64u(body)));
+  } catch {
+    return null;
+  }
+  return p && typeof p.exp === 'number' && p.exp > Date.now() ? p : null;
+}
+
+const accountsOn = (env) => !!(env.DB && env.AUTH_SECRET);
+const ownerTag = async (env) => (await sha(`owner:${env.OWNER_KEY}`)).slice(0, 16);
+
+const schemaDone = new WeakSet();
+async function db(env) {
+  if (!schemaDone.has(env.DB)) {
+    await env.DB.batch([
+      env.DB.prepare('CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, name TEXT NOT NULL, pass TEXT NOT NULL, salt TEXT NOT NULL, status TEXT NOT NULL, daily_limit INTEGER, token_version INTEGER NOT NULL DEFAULT 1, created_at INTEGER NOT NULL, last_seen INTEGER)'),
+      env.DB.prepare('CREATE TABLE IF NOT EXISTS usage (user_id TEXT NOT NULL, day TEXT NOT NULL, n INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (user_id, day))'),
+      env.DB.prepare('CREATE TABLE IF NOT EXISTS settings (k TEXT PRIMARY KEY, v TEXT NOT NULL)'),
+    ]);
+    schemaDone.add(env.DB);
+  }
+  return env.DB;
+}
+
+async function getSettings(env) {
+  const s = {
+    signup: SIGNUP_MODES.includes(env.SIGNUP_MODE) ? env.SIGNUP_MODE : 'open',
+    requireAccount: String(env.REQUIRE_ACCOUNT || '').toLowerCase() === 'on',
+    dailyLimit: Number(env.DAILY_LIMIT) > 0 ? Math.floor(Number(env.DAILY_LIMIT)) : 100,
+  };
+  const rows = (await (await db(env)).prepare('SELECT k, v FROM settings').all()).results ?? [];
+  for (const r of rows) {
+    if (r.k === 'signup' && SIGNUP_MODES.includes(r.v)) s.signup = r.v;
+    if (r.k === 'requireAccount') s.requireAccount = r.v === 'on';
+    if (r.k === 'dailyLimit' && Number(r.v) > 0) s.dailyLimit = Math.floor(Number(r.v));
+  }
+  return s;
+}
+
+const today = () => new Date().toISOString().slice(0, 10);
+const publicUser = (u) => ({ id: u.id, name: u.name, email: u.email, status: u.status, role: 'user', dailyLimit: u.daily_limit ?? null, createdAt: u.created_at, lastSeen: u.last_seen ?? null });
+const OWNER_USER = { id: 'owner', name: 'Owner', email: '', status: 'active', role: 'owner', dailyLimit: null };
+
+/** Who is calling: the owner, a signed-in user, nobody, or a bad/expired sign-in. */
+async function identify(request, env) {
+  const m = /^Bearer\s+(jeea1\.\S+)$/.exec(request.headers.get('Authorization') || '');
+  if (!m || !accountsOn(env)) return { kind: 'anon' };
+  const p = await readToken(env, m[1]);
+  if (!p) return { kind: 'invalid', status: 401, reason: 'Your sign-in has expired. Please sign in again.' };
+  if (p.role === 'owner') {
+    if (!env.OWNER_KEY || p.k !== (await ownerTag(env))) return { kind: 'invalid', status: 401, reason: 'The owner sign-in is no longer valid. Sign in again with the owner key.' };
+    return { kind: 'owner' };
+  }
+  const user = await (await db(env)).prepare('SELECT * FROM users WHERE id = ?').bind(p.sub).first();
+  if (!user) return { kind: 'invalid', status: 401, reason: 'This account no longer exists. Please register again.' };
+  if (user.status === 'blocked') return { kind: 'invalid', status: 403, reason: 'This account has been blocked by the site owner.' };
+  if (user.status === 'pending') return { kind: 'invalid', status: 403, reason: "Your account is waiting for the site owner's approval." };
+  if (user.token_version !== p.v) return { kind: 'invalid', status: 401, reason: 'Please sign in again.' };
+  return { kind: 'user', user };
+}
+
+/**
+ * Checks before a model, search or image request. Returns {res} to send back
+ * at once, or {key} for the per-minute limit (null = the owner: no limits).
+ * Chat and image requests of signed-in users count against their daily limit.
+ */
+async function guard(request, env, cors, kind) {
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  if (!accountsOn(env)) return { key: ip };
+  const who = await identify(request, env);
+  if (who.kind === 'invalid') return { res: json({ error: { message: who.reason, code: 'auth' } }, who.status, cors) };
+  if (who.kind === 'owner') return { key: null };
+  const s = await getSettings(env);
+  if (who.kind === 'anon') {
+    if (s.requireAccount) {
+      return { res: json({ error: { message: 'Please sign in to use the free models shared by this site: open Account, then Register or Sign in.', code: 'account_required' } }, 401, cors) };
+    }
+    return { key: ip };
+  }
+  if (kind !== 'search') {
+    const limit = who.user.daily_limit ?? s.dailyLimit;
+    const d = await db(env);
+    const day = today();
+    const row = await d.prepare('SELECT n FROM usage WHERE user_id = ? AND day = ?').bind(who.user.id, day).first();
+    if ((row?.n ?? 0) >= limit) {
+      return { res: json({ error: { message: `Your daily limit of ${limit} requests on this site's free models is used up. It resets at midnight UTC.`, code: 'daily_limit' } }, 429, cors) };
+    }
+    await d.batch([
+      d.prepare('INSERT INTO usage (user_id, day, n) VALUES (?, ?, 1) ON CONFLICT(user_id, day) DO UPDATE SET n = n + 1').bind(who.user.id, day),
+      d.prepare('UPDATE users SET last_seen = ? WHERE id = ?').bind(Date.now(), who.user.id),
+    ]);
+  }
+  return { key: `u:${who.user.id}` };
+}
+
+const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
+const tooMany = (cors, what) => new Response(JSON.stringify({ error: { message: `Too many ${what} attempts. Please wait a minute.` } }), { status: 429, headers: { 'Content-Type': 'application/json', 'Retry-After': '60', ...cors } });
+
+async function readJson(request) {
+  const text = await request.text();
+  if (text.length > 10_000) return null;
+  try {
+    const body = JSON.parse(text);
+    return body && typeof body === 'object' ? body : null;
+  } catch {
+    return null;
+  }
+}
+
+async function accountRoutes(request, env, cors, path) {
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  if (request.method === 'GET' && path === '/v1/auth/config') {
+    if (!accountsOn(env)) return json({ accounts: false }, 200, cors);
+    const s = await getSettings(env);
+    return json({ accounts: true, ...s, owner: !!env.OWNER_KEY }, 200, cors);
+  }
+  if (!accountsOn(env)) return json({ error: { message: 'Accounts are not set up on this gateway (it needs a D1 binding named DB and the secret AUTH_SECRET).' } }, 501, cors);
+
+  if (request.method === 'POST' && path === '/v1/auth/register') {
+    if (!allowed(`register:${ip}`, 3)) return tooMany(cors, 'sign-up');
+    const s = await getSettings(env);
+    if (s.signup === 'closed') return json({ error: { message: 'Registration is closed by the site owner.' } }, 403, cors);
+    const body = await readJson(request);
+    const name = String(body?.name ?? '').trim().slice(0, 60);
+    const email = String(body?.email ?? '').trim().toLowerCase();
+    const password = String(body?.password ?? '');
+    if (!name) return json({ error: { message: 'Please enter your name.' } }, 400, cors);
+    if (!EMAIL.test(email)) return json({ error: { message: 'Please enter a valid email address.' } }, 400, cors);
+    if (password.length < 8 || password.length > 200) return json({ error: { message: 'The password needs at least 8 characters.' } }, 400, cors);
+    const d = await db(env);
+    if (await d.prepare('SELECT id FROM users WHERE email = ?').bind(email).first()) {
+      return json({ error: { message: 'An account with this email already exists. Please sign in.' } }, 409, cors);
+    }
+    const salt = b64u(crypto.getRandomValues(new Uint8Array(16)));
+    const user = { id: crypto.randomUUID(), email, name, pass: await hashPassword(password, salt), salt, status: s.signup === 'open' ? 'active' : 'pending', created_at: Date.now() };
+    await d.prepare('INSERT INTO users (id, email, name, pass, salt, status, token_version, created_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?)').bind(user.id, user.email, user.name, user.pass, user.salt, user.status, user.created_at).run();
+    if (user.status === 'pending') return json({ pending: true, message: "Thank you! The site owner will review your request. You can sign in once it is approved." }, 202, cors);
+    const token = await makeToken(env, { sub: user.id, role: 'user', v: 1 });
+    return json({ token, user: publicUser(user) }, 201, cors);
+  }
+
+  if (request.method === 'POST' && path === '/v1/auth/login') {
+    if (!allowed(`login:${ip}`, 10)) return tooMany(cors, 'sign-in');
+    const body = await readJson(request);
+    const email = String(body?.email ?? '').trim().toLowerCase();
+    const password = String(body?.password ?? '');
+    const user = email ? await (await db(env)).prepare('SELECT * FROM users WHERE email = ?').bind(email).first() : null;
+    const ok = user && sameText(await hashPassword(password, user.salt), user.pass);
+    if (!ok) return json({ error: { message: 'Wrong email or password.' } }, 401, cors);
+    if (user.status === 'pending') return json({ error: { message: "Your account is waiting for the site owner's approval." } }, 403, cors);
+    if (user.status === 'blocked') return json({ error: { message: 'This account has been blocked by the site owner.' } }, 403, cors);
+    await (await db(env)).prepare('UPDATE users SET last_seen = ? WHERE id = ?').bind(Date.now(), user.id).run();
+    return json({ token: await makeToken(env, { sub: user.id, role: 'user', v: user.token_version }), user: publicUser(user) }, 200, cors);
+  }
+
+  if (request.method === 'POST' && path === '/v1/auth/owner') {
+    if (!allowed(`owner:${ip}`, 5)) return tooMany(cors, 'owner sign-in');
+    if (!env.OWNER_KEY) return json({ error: { message: 'No owner key is set on this gateway (secret OWNER_KEY).' } }, 501, cors);
+    const body = await readJson(request);
+    if (!sameText(await sha(String(body?.key ?? '')), await sha(String(env.OWNER_KEY)))) return json({ error: { message: 'Wrong owner key.' } }, 401, cors);
+    return json({ token: await makeToken(env, { sub: 'owner', role: 'owner', k: await ownerTag(env) }), user: OWNER_USER }, 200, cors);
+  }
+
+  const who = await identify(request, env);
+  if (who.kind === 'invalid') return json({ error: { message: who.reason, code: 'auth' } }, who.status, cors);
+
+  if (request.method === 'GET' && path === '/v1/auth/me') {
+    if (who.kind === 'anon') return json({ error: { message: 'Not signed in.' } }, 401, cors);
+    if (who.kind === 'owner') return json({ user: OWNER_USER, usage: null }, 200, cors);
+    const s = await getSettings(env);
+    const row = await (await db(env)).prepare('SELECT n FROM usage WHERE user_id = ? AND day = ?').bind(who.user.id, today()).first();
+    return json({ user: publicUser(who.user), usage: { today: row?.n ?? 0, limit: who.user.daily_limit ?? s.dailyLimit } }, 200, cors);
+  }
+
+  // ---- owner only
+  if (!path.startsWith('/v1/admin/')) return json({ error: { message: 'Not found.' } }, 404, cors);
+  if (who.kind !== 'owner') return json({ error: { message: 'Only the site owner can do this.' } }, 403, cors);
+  const d = await db(env);
+
+  if (request.method === 'GET' && path === '/v1/admin/users') {
+    const users = (await d.prepare('SELECT u.*, COALESCE(g.n, 0) AS today FROM users u LEFT JOIN usage g ON g.user_id = u.id AND g.day = ? ORDER BY u.created_at DESC LIMIT 1000').bind(today()).all()).results ?? [];
+    return json({ users: users.map((u) => ({ ...publicUser(u), today: u.today })), settings: await getSettings(env) }, 200, cors);
+  }
+
+  if (request.method === 'POST' && path === '/v1/admin/settings') {
+    const body = (await readJson(request)) ?? {};
+    const puts = [];
+    if (SIGNUP_MODES.includes(body.signup)) puts.push(['signup', body.signup]);
+    if (typeof body.requireAccount === 'boolean') puts.push(['requireAccount', body.requireAccount ? 'on' : 'off']);
+    if (Number(body.dailyLimit) > 0) puts.push(['dailyLimit', String(Math.min(100_000, Math.floor(Number(body.dailyLimit))))]);
+    if (puts.length) await d.batch(puts.map(([k, v]) => d.prepare('INSERT INTO settings (k, v) VALUES (?, ?) ON CONFLICT(k) DO UPDATE SET v = excluded.v').bind(k, v)));
+    return json({ settings: await getSettings(env) }, 200, cors);
+  }
+
+  const m = /^\/v1\/admin\/users\/([\w-]{1,64})$/.exec(path);
+  if (request.method === 'POST' && m) {
+    const user = await d.prepare('SELECT * FROM users WHERE id = ?').bind(m[1]).first();
+    if (!user) return json({ error: { message: 'No such user.' } }, 404, cors);
+    const body = (await readJson(request)) ?? {};
+    const action = String(body.action ?? '');
+    if (action === 'delete') {
+      await d.batch([d.prepare('DELETE FROM usage WHERE user_id = ?').bind(user.id), d.prepare('DELETE FROM users WHERE id = ?').bind(user.id)]);
+      return json({ deleted: true }, 200, cors);
+    }
+    if (action === 'approve' || action === 'unblock') {
+      await d.prepare("UPDATE users SET status = 'active' WHERE id = ?").bind(user.id).run();
+    } else if (action === 'block') {
+      // A new token version signs the person out everywhere at once.
+      await d.prepare("UPDATE users SET status = 'blocked', token_version = token_version + 1 WHERE id = ?").bind(user.id).run();
+    } else if (action === 'limit') {
+      const n = body.dailyLimit == null || body.dailyLimit === '' ? null : Math.max(0, Math.min(100_000, Math.floor(Number(body.dailyLimit))));
+      if (n != null && !Number.isFinite(n)) return json({ error: { message: 'The limit must be a number.' } }, 400, cors);
+      await d.prepare('UPDATE users SET daily_limit = ? WHERE id = ?').bind(n, user.id).run();
+    } else if (action === 'password') {
+      const password = String(body.password ?? '');
+      if (password.length < 8 || password.length > 200) return json({ error: { message: 'The new password needs at least 8 characters.' } }, 400, cors);
+      const salt = b64u(crypto.getRandomValues(new Uint8Array(16)));
+      await d.prepare('UPDATE users SET pass = ?, salt = ?, token_version = token_version + 1 WHERE id = ?').bind(await hashPassword(password, salt), salt, user.id).run();
+    } else {
+      return json({ error: { message: 'Unknown action.' } }, 400, cors);
+    }
+    const fresh = await d.prepare('SELECT * FROM users WHERE id = ?').bind(user.id).first();
+    return json({ user: publicUser(fresh) }, 200, cors);
+  }
+
+  return json({ error: { message: 'Not found.' } }, 404, cors);
+}
+
 export default {
   async fetch(request, env) {
     const origin = request.headers.get('Origin') || '';
@@ -256,6 +549,8 @@ export default {
       return json({ name: 'JeeA Gateway', providers: ready, search: !!env.TAVILY_API_KEY, images: !!env.AI, endpoints: ['/v1/models', '/v1/chat/completions', '/v1/search', '/v1/images/generations'] }, 200, cors);
     }
 
+    if (path.startsWith('/v1/auth/') || path.startsWith('/v1/admin/')) return accountRoutes(request, env, cors, path);
+
     if (request.method === 'GET' && path === '/v1/models') {
       const out = [];
       if (env.AI) for (const id of CF_MODELS) out.push({ id: `cloudflare:${id}`, object: 'model', owned_by: 'cloudflare' });
@@ -273,9 +568,10 @@ export default {
 
     if (request.method === 'POST' && path === '/v1/images/generations') {
       if (!env.AI) return json({ error: { message: 'This gateway has no Workers AI binding named "AI", so it cannot make images.' } }, 501, cors);
-      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+      const g = await guard(request, env, cors, 'image');
+      if (g.res) return g.res;
       const perMinute = Number(env.IMAGE_PER_MINUTE || 3);
-      if (!allowed(`image:${ip}`, perMinute)) {
+      if (g.key && !allowed(`image:${g.key}`, perMinute)) {
         return new Response(JSON.stringify({ error: { message: `Image limit reached: ${perMinute} per minute.` } }), {
           status: 429,
           headers: { 'Content-Type': 'application/json', 'Retry-After': '60', ...cors },
@@ -297,9 +593,10 @@ export default {
 
     if (request.method === 'POST' && path === '/v1/search') {
       if (!env.TAVILY_API_KEY) return json({ error: { message: 'This gateway has no search key (TAVILY_API_KEY).' } }, 501, cors);
-      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+      const g = await guard(request, env, cors, 'search');
+      if (g.res) return g.res;
       const perMinute = Number(env.SEARCH_PER_MINUTE || 6);
-      if (!allowed(`search:${ip}`, perMinute)) {
+      if (g.key && !allowed(`search:${g.key}`, perMinute)) {
         return new Response(JSON.stringify({ error: { message: `Search limit reached: ${perMinute} per minute.` } }), {
           status: 429,
           headers: { 'Content-Type': 'application/json', 'Retry-After': '60', ...cors },
@@ -317,9 +614,10 @@ export default {
     }
 
     if (request.method === 'POST' && path === '/v1/chat/completions') {
-      const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+      const g = await guard(request, env, cors, 'chat');
+      if (g.res) return g.res;
       const perMinute = Number(env.PER_MINUTE || 12);
-      if (!allowed(ip, perMinute)) {
+      if (g.key && !allowed(g.key, perMinute)) {
         return new Response(JSON.stringify({ error: { message: `Free limit reached: ${perMinute} requests per minute. Please wait a minute.` } }), {
           status: 429,
           headers: { 'Content-Type': 'application/json', 'Retry-After': '60', ...cors },

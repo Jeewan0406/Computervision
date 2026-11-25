@@ -2,6 +2,18 @@
 
 All notable changes to JeeA! are listed here. The same notes appear in the app under **What's new** (✨).
 
+## 1.11.0 — 2026-11-25 — Accounts: the public can register; the owner stays in control
+
+### New
+- **Accounts on the JeeA Gateway** (`proxy/jeea-gateway.js`), switched on by a D1 binding named `DB` plus the secret `AUTH_SECRET`. Endpoints: `/v1/auth/config`, `/v1/auth/register`, `/v1/auth/login`, `/v1/auth/owner`, `/v1/auth/me`, and owner-only `/v1/admin/users`, `/v1/admin/users/:id`, `/v1/admin/settings`. Tables (`users`, `usage`, `settings`) are created on first use.
+- **Owner**: signs in with the secret `OWNER_KEY`; no limits; changing the key ends old owner sign-ins.
+- **Owner settings** (stored in D1, so no redeploy): registration `open` / `approval` / `closed`, "registered users only", default daily limit. Per user: approve, block (bumps the token version, so every sign-in ends at once), unblock, own daily limit, new password, delete.
+- **App** (`src/lib/account.ts`, `src/components/Account.tsx`): 👤 Account button (only when the gateway has accounts), sign-in / register / owner forms, usage meter, owner admin panel, and a sign-in screen when "registered users only" is on. The sign-in is sent to the gateway for chat, web search and images.
+
+### Security
+- Passwords: PBKDF2-SHA-256, 100,000 rounds, 16-byte random salt; constant-time comparison. Sign-ins: HMAC-SHA-256 signed, 30-day expiry. Limits per visitor per minute: 3 sign-ups, 10 sign-ins, 5 owner attempts. Daily request limit per user on chat and images.
+- Tested with Node's SQLite standing in for D1 (`tests/d1mock.mjs`, `tests/accounts.test.mjs`), and in the browser against the real gateway code.
+
 ## 1.10.1 — 2026-11-25 — New home: JeeAI-by-Jeewan
 
 ### Changed

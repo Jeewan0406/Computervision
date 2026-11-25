@@ -1016,3 +1016,39 @@ label.chip { cursor: pointer; }
 /* ---------- v1.10: Auto model and automatic switching ---------- */
 .badge-auto { color: #fff; background: linear-gradient(135deg, var(--btn-a, var(--accent)), var(--btn-b, var(--accent-2))); }
 .metrics .metric-auto { color: var(--muted); flex-basis: 100%; white-space: normal; line-height: 1.35; display: block; }
+
+/* ---------- v1.11: accounts ---------- */
+.account-btn .account-initial { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 999px; font-size: 12px; font-weight: 800; color: #fff; background: linear-gradient(135deg, var(--btn-a, var(--accent)), var(--btn-b, var(--accent-2))); }
+.account-btn.signed-in { color: var(--accent); }
+.account-panel { display: flex; flex-direction: column; gap: 14px; }
+.account-form { display: flex; flex-direction: column; gap: 12px; }
+.account-form input { width: 100%; }
+.account-msg { font-size: 13px; padding: 9px 12px; border-radius: 10px; line-height: 1.45; }
+.account-msg.ok { background: color-mix(in srgb, #16a34a 14%, transparent); border: 1px solid color-mix(in srgb, #16a34a 40%, transparent); }
+.account-msg.warn { background: color-mix(in srgb, #dc2626 12%, transparent); border: 1px solid color-mix(in srgb, #dc2626 38%, transparent); }
+.account-msg .link { margin-left: 6px; text-decoration: underline; color: inherit; }
+.account-me { display: flex; align-items: center; gap: 12px; }
+.account-me-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.account-me-text span { overflow: hidden; text-overflow: ellipsis; }
+.account-avatar { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 999px; font-weight: 800; color: #fff; background: linear-gradient(135deg, var(--btn-a, var(--accent)), var(--btn-b, var(--accent-2))); flex-shrink: 0; }
+.account-usage { display: flex; flex-direction: column; gap: 6px; }
+.meter { height: 8px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+.meter span { display: block; height: 100%; background: linear-gradient(90deg, var(--btn-a, var(--accent)), var(--btn-b, var(--accent-2))); }
+.owner-admin { display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border); padding-top: 14px; }
+.owner-admin h3 { font-size: 14px; margin: 0; }
+.owner-settings { display: flex; flex-direction: column; gap: 4px; }
+.num-input { width: 90px; }
+.owner-users-head { margin-top: 6px; }
+.owner-users { display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow: auto; }
+.owner-user { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface-2); }
+.owner-user-main { min-width: 0; flex: 1 1 220px; }
+.owner-user-main .muted { overflow-wrap: anywhere; }
+.owner-user-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.badge-active { color: #166534; background: #dcfce7; }
+.badge-pending { color: #92400e; background: #fef3c7; }
+.badge-blocked { color: #991b1b; background: #fee2e2; }
+.account-gate { min-height: 100vh; min-height: 100dvh; display: grid; place-items: center; padding: 24px 16px; position: relative; z-index: 1; }
+.account-gate-card { width: 100%; max-width: 440px; background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 26px 22px; box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35); }
+.account-gate-head { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; margin-bottom: 18px; }
+.account-gate-head h1 { margin: 4px 0 0; font-size: 28px; }
+.row.between { justify-content: space-between; gap: 8px; }

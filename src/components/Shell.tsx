@@ -1,3 +1,4 @@
+import { AccountButton } from './Account';
 import { useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   Activity, Bot, Code2, Columns3, Folder, ImagePlus, KeyRound, Menu, MessageSquare, Moon, Pencil, Pin, PinOff, Plus, Search,
@@ -182,6 +183,7 @@ export function Sidebar() {
             {providersReady ? `${providersReady} provider${providersReady > 1 ? 's' : ''} · ${keyed} key${keyed === 1 ? '' : 's'}` : 'Free model ready · add keys for more'}
           </button>
           <div className="foot-row">
+            <AccountButton />
             <button className="icon-btn" title="Settings" onClick={() => openModal('settings')}><SettingsIcon size={17} /></button>
             <button className="icon-btn" title="What's new" onClick={() => openModal('whatsnew')}><Sparkles size={17} /></button>
             <button className="icon-btn" title={`Theme: ${theme}`} onClick={cycleTheme}><ThemeIcon size={17} /></button>

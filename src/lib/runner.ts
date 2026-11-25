@@ -1,3 +1,5 @@
+import { gatewayToken } from './account';
+import { GATEWAY_ID } from './providers';
 import { currentThinking } from './thinkrun';
 import type { GenParams, ModelRef, MsgMeta, ProviderDef, Slot, View } from './types';
 import { LLMError, streamText, type CallTarget, type ChatMsg } from './llm';
@@ -96,7 +98,8 @@ const rr = new Map<string, number>();
 function candidateSlots(p: ProviderDef, pinned?: string): SlotLike[] {
   if (p.access === 'keyless' || p.kind === 'browser') {
     return [{
-      id: `keyless:${p.id}`, providerId: p.id, label: 'Free', apiKey: '', enabled: true, createdAt: 0,
+      // The site's gateway gets the visitor's sign-in (accounts), if any.
+      id: `keyless:${p.id}`, providerId: p.id, label: 'Free', apiKey: p.id === GATEWAY_ID ? gatewayToken() ?? '' : '', enabled: true, createdAt: 0,
       status: 'ok', uses: 0, failures: 0, virtual: true,
     }];
   }

@@ -98,6 +98,28 @@ You can use any model a provider offers: JeeA! loads the live model list from th
 | Ollama · LM Studio | Runs on your computer | Turn on CORS in the local server (see the note in the app). |
 | Your own endpoint | Any | Any OpenAI-compatible `/chat/completions` server, or the Anthropic Messages format. |
 
+## Accounts: let the public register (you stay the owner)
+
+Anyone can open JeeA! and use it with their own keys or the free no-key services; that costs you nothing. What costs **you** is the **JeeA Gateway**: the free models you share with your own keys and allowances. Accounts control who may use those.
+
+**For the public:** open **👤 Account** (bottom left) → **Register** with name, email and password → use the site's shared models within a daily allowance. Passwords are stored only as salted PBKDF2-SHA-256 hashes; sign-ins expire after 30 days.
+
+**For you, the owner:** **👤 Account → Owner** → enter your owner key. You have **no limits** and an admin panel:
+- **Registration:** *Open* (anyone joins at once), *With my approval* (you approve each person) or *Closed*.
+- **Registered users only:** when on, visitors see a sign-in screen and the gateway refuses anyone not signed in. When off, everyone can use the site; signed-in users get their own daily allowance.
+- **Daily limit per user** (default 100 requests), and per person: approve, block (signs them out everywhere at once), unblock, own limit, set a new password, delete.
+
+**Set-up (once, in your Cloudflare dashboard; menu names may differ slightly):**
+1. Deploy the JeeA Gateway (steps in the next section) and put its address in `public/jeea.config.json`.
+2. Create a **D1 database** (Storage & Databases → D1), then in the Worker's **Settings → Bindings** add it as a D1 binding named **`DB`**. The Worker creates its tables itself.
+3. In **Settings → Variables and Secrets** add two **secrets**: **`AUTH_SECRET`** (a long random text; it signs sign-ins) and **`OWNER_KEY`** (your own long passphrase). Never put them in the repository or share them in a chat.
+4. Optional text variables: `SIGNUP_MODE` (`open`, `approval`, `closed`), `REQUIRE_ACCOUNT` (`on`), `DAILY_LIMIT` (number). You can change all three later in the app.
+5. Paste the latest `proxy/jeea-gateway.js` into the Worker and deploy. Then sign in on the site with **Account → Owner**.
+
+**What is enforced, and what is not.** The gateway checks every request on the server, so blocked, unapproved or signed-out people cannot use your shared models. The sign-in screen in the app is only a front door: the app's code is public, so a technical person could run their own copy. That copy can use only their own keys and public free services, never your gateway.
+
+**Privacy and limits.** You can see registered names, emails, daily use and last use. Chats and API keys stay in each person's browser and are never sent to you. There is no email check and no "forgot password" email (the site has no mail service); you can set a new password for someone. Sign-up and sign-in attempts are limited per visitor per minute.
+
 ## Auto and automatic switching
 
 **Auto** is the first entry in the model picker (and the default for new visitors). For each question it:
@@ -296,6 +318,7 @@ src/
     projects.ts     projects store (IndexedDB) and their files
     extract.ts      text from PDF (pdf.js), Word (mammoth), PowerPoint and Excel (fflate) and text files
     attach.ts       paste rules and picture resizing for the message box
+    account.ts      accounts on the gateway: register, sign in, owner, admin calls
     router.ts       Auto: how demanding a question is, model strength estimates, ranking
     autopick.ts     Auto inside the app: usable models, recent failures, busy free tiers
     thinking.ts     thinking levels: critical-thinking steps, Claude effort, OpenAI reasoning effort, Max review

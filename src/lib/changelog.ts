@@ -1,5 +1,5 @@
 /** In-app release log ("What's new"). Mirrors CHANGELOG.md. */
-export const APP_VERSION = '1.10.1';
+export const APP_VERSION = '1.11.0';
 
 export interface Release {
   version: string;
@@ -9,6 +9,16 @@ export interface Release {
 }
 
 export const CHANGELOG: Release[] = [
+  {
+    version: '1.11.0',
+    date: '2026-11-25',
+    title: 'Accounts: the public can register; the owner stays in control',
+    items: [
+      { tag: 'new', feature: 'Register and sign in', text: 'When the site owner sets up accounts on the JeeA Gateway, a 👤 Account button appears at the bottom left. Register with your name, email and password, then use the site\'s shared free models within a daily allowance that you can see.' },
+      { tag: 'new', feature: 'Owner', text: 'The owner signs in with a secret owner key and has no limits. The admin panel sets registration (open, with approval, or closed), "registered users only", and the daily limit, and lets the owner approve, block, unblock, set a limit for, reset the password of, or delete any account.' },
+      { tag: 'security', feature: 'Enforced on the server', text: 'The gateway checks every request: blocked, unapproved and signed-out people cannot use the shared models. Passwords are stored only as salted hashes; sign-ins are signed and expire after 30 days; sign-up and sign-in attempts are limited. Chats and API keys never leave your browser.' },
+    ],
+  },
   {
     version: '1.10.1',
     date: '2026-11-25',

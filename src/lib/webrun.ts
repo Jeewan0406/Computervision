@@ -1,5 +1,6 @@
 // App side of the automatic web search: reads the setting, runs the search
 // as a stoppable job, logs it and builds the system text for the model.
+import { authHeaders } from './account';
 import type { View } from './types';
 import { dateLine, searchQuery, webDecision, webPrompt, webSearch, type WebSource } from './web';
 import { gatewayInfo, useSettings } from './settings';
@@ -48,6 +49,7 @@ export async function prepareWeb(
       query,
       news: d.news,
       gateway: gw ? gw.baseUrl.replace(/\/v1$/, '') : null,
+      gatewayHeaders: authHeaders(),
       signal: ctrl.signal,
       trusted: async (signal) => searchNews(await loadNewsIndex(newsIndexUrl(), undefined, signal), query, { text, allowNews, max: d.news ? 9 : 7 }),
     });

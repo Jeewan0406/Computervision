@@ -1,3 +1,4 @@
+import { loadAccount } from './lib/account';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
@@ -41,9 +42,13 @@ setTimeout(async () => {
 fetch('./jeea.config.json', { cache: 'no-store' })
   .then((r) => (r.ok ? r.json() : null))
   .then(async (cfg) => {
-    if (!cfg?.gateway) return;
+    if (!cfg?.gateway) {
+      void loadAccount();
+      return;
+    }
     setGateway(cfg.gateway, cfg.gatewayName);
     useRuntime.getState().bump();
+    void loadAccount();
     const gw = gatewayInfo();
     if (!gw) return;
     try {

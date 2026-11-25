@@ -7,6 +7,8 @@ import { Sidebar } from './components/Shell';
 import { Modals } from './components/Modals';
 import { ChatView } from './views/ChatView';
 import { LogoMark } from './components/Logo';
+import { AccountGate } from './components/Account';
+import { useAccount } from './lib/account';
 
 // Heavier views load on first visit.
 const AgentView = lazy(() => import('./views/AgentView').then((m) => ({ default: m.AgentView })));
@@ -48,11 +50,22 @@ export default function App() {
   const hydrated = useData((s) => s.hydrated);
   const seen = useSettings((s) => s.seenVersion);
   const openModal = useUI((s) => s.openModal);
+  // The owner can allow only registered users: then sign in first.
+  const gated = useAccount((s) => !!(s.config?.accounts && s.config.requireAccount && !s.token));
 
   useEffect(() => {
     if (hydrated && seen && seen !== APP_VERSION) openModal('whatsnew');
     if (hydrated && seen !== APP_VERSION) useSettings.getState().set({ seenVersion: APP_VERSION });
   }, [hydrated, seen, openModal]);
+
+  if (gated) {
+    return (
+      <>
+        <AccountGate />
+        <Modals />
+      </>
+    );
+  }
 
   return (
     <div className="app">

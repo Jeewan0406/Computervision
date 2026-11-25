@@ -1,3 +1,4 @@
+import { AccountPanel } from './Account';
 import { useRef, useState, type ReactNode } from 'react';
 import { CheckCircle2, Info, Trophy, X, XCircle } from 'lucide-react';
 import { useUI } from '../lib/ui';
@@ -330,6 +331,11 @@ export function Modals() {
       {modal === 'settings' && <SettingsModal onClose={close} />}
       {modal === 'whatsnew' && <WhatsNewModal onClose={close} />}
       {modal === 'leaderboard' && <LeaderboardModal onClose={close} />}
+      {modal === 'account' && (
+        <Modal title="Account" onClose={close} wide>
+          <AccountPanel />
+        </Modal>
+      )}
       <ProjectModal />
       {confirmReq && (
         <div className="modal-scrim" onMouseDown={(e) => e.target === e.currentTarget && closeConfirm(false)}>

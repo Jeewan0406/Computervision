@@ -18,7 +18,7 @@ interface ConfirmReq {
 interface UIState {
   view: View;
   navOpen: boolean;
-  modal: null | 'settings' | 'whatsnew' | 'leaderboard';
+  modal: null | 'settings' | 'whatsnew' | 'leaderboard' | 'account';
   toasts: Toast[];
   confirmReq: ConfirmReq | null;
   /** Provider id to pre-select in the "Add slot" form. */

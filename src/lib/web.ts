@@ -151,11 +151,11 @@ async function getJson(fetchFn: FetchFn, url: string, signal: AbortSignal, init?
 }
 
 /** Web results through the site owner's gateway (Tavily). Null = not available. */
-export async function gatewaySearch(gateway: string, q: string, news: boolean, fetchFn: FetchFn, signal: AbortSignal): Promise<WebSource[] | null> {
+export async function gatewaySearch(gateway: string, q: string, news: boolean, fetchFn: FetchFn, signal: AbortSignal, headers: Record<string, string> = {}): Promise<WebSource[] | null> {
   try {
     const data = (await getJson(fetchFn, `${gateway.replace(/\/+$/, '')}/v1/search`, signal, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...headers },
       body: JSON.stringify({ query: q, max_results: 8, topic: news ? 'news' : 'general' }),
     })) as { results?: { title?: string; url?: string; content?: string; published_date?: string }[] };
     return (data.results ?? [])
@@ -286,6 +286,8 @@ export async function webSearch(opts: {
   query: string;
   news: boolean;
   gateway?: string | null;
+  /** Sign-in for the gateway (accounts). */
+  gatewayHeaders?: Record<string, string>;
   fetchFn?: FetchFn;
   signal?: AbortSignal;
   timeoutMs?: number;
@@ -304,7 +306,7 @@ export async function webSearch(opts: {
   // results, then encyclopedia intros.
   const trusted = opts.trusted ? opts.trusted(signal) : Promise.resolve([] as WebSource[]);
   const gateway = useGateway
-    ? gatewaySearch(opts.gateway!, opts.query, opts.news, fetchFn, signal).then((r) => {
+    ? gatewaySearch(opts.gateway!, opts.query, opts.news, fetchFn, signal, opts.gatewayHeaders).then((r) => {
         if (r === null) gatewaySearchOff = true;
         return r ?? [];
       })

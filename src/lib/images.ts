@@ -3,6 +3,7 @@
 //  - JeeA Gateway (site owner's Cloudflare Workers AI): FLUX.1 [schnell].
 //  - OpenAI with your own key: POST /images/generations (GPT image models
 //    always return base64).
+import { authHeaders } from './account';
 import { create } from 'zustand';
 import { get as idbGet, set as idbSet } from 'idb-keyval';
 import { gatewayInfo, getProvider, slotsFor } from './settings';
@@ -97,7 +98,7 @@ export async function generateImage(opt: { source: ImageSource; model: string; p
   if (opt.source === 'gateway') {
     const gw = gatewayInfo();
     if (!gw) throw new Error('This site has no JeeA Gateway.');
-    return post(`${gw.baseUrl}/images/generations`, { prompt, steps: 4 });
+    return post(`${gw.baseUrl}/images/generations`, { prompt, steps: 4 }, authHeaders());
   }
   const p = getProvider('openai');
   const slot = slotsFor('openai').find((s) => s.enabled && s.apiKey);
