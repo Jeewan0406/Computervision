@@ -208,7 +208,15 @@ async function main() {
     }
   }
   console.log(`   set: ${Object.keys(secrets).join(', ') || 'nothing new'}${have.has('AUTH_SECRET') ? ' (AUTH_SECRET kept, so people stay signed in)' : ''}`);
-  if (!process.env.JEEA_OWNER_KEY && !have.has('OWNER_KEY')) console.log('   note: no JEEA_OWNER_KEY secret, so there is no owner sign-in yet.');
+  if (!process.env.JEEA_OWNER_KEY && !have.has('OWNER_KEY')) {
+    console.log('   note: no JEEA_OWNER_KEY secret, so there is no owner sign-in yet.');
+    // A warning shows on the run's page, so the owner sees it without opening the log.
+    if (process.env.JEEA_OWNER_KEY_AS_VARIABLE === 'yes') {
+      console.log('::warning::JEEA_OWNER_KEY was saved as a Variable, not a Secret, so it was not used (and Variables are not hidden). Delete it on the Variables tab, add it again on the Secrets tab (Settings → Secrets and variables → Actions → Secrets → New repository secret), then run this workflow again.');
+    } else {
+      console.log('::warning::No owner sign-in yet: the repository secret JEEA_OWNER_KEY was not found. Add it on Settings → Secrets and variables → Actions → Secrets tab → New repository secret (name exactly JEEA_OWNER_KEY), then run this workflow again.');
+    }
+  }
   rmSync(dir, { recursive: true, force: true });
 
   // 5. Connect the site.
