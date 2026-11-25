@@ -61,6 +61,28 @@ export function gatewayConfig({ main, dbId, origin, signup = 'open', requireAcco
   ].join('\n');
 }
 
+/** The GitHub secrets the deploy cannot run without. */
+export const REQUIRED_SECRETS = ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID'];
+
+/**
+ * Checks the secrets before anything runs. Returns the names that are missing,
+ * plus plain-English problems (e.g. an Account ID that is not the 32-character code).
+ * Pure: reads only the object it is given.
+ */
+export function checkSecrets(env) {
+  const val = (k) => String(env[k] ?? '').trim();
+  const missing = REQUIRED_SECRETS.filter((k) => !val(k));
+  const problems = [];
+  const id = val('CLOUDFLARE_ACCOUNT_ID');
+  if (id && !/^[0-9a-f]{32}$/i.test(id)) {
+    problems.push(`CLOUDFLARE_ACCOUNT_ID does not look like an Account ID (it should be a code of 32 letters a–f and numbers, ${id.length} characters were found). Copy it again from the Cloudflare dashboard.`);
+  }
+  if (val('CLOUDFLARE_API_TOKEN') && /\s/.test(val('CLOUDFLARE_API_TOKEN'))) {
+    problems.push('CLOUDFLARE_API_TOKEN contains a space. Paste only the token itself, with nothing before or after it.');
+  }
+  return { missing, problems };
+}
+
 /** Put the gateway address into the site config; returns true when it changed. */
 export function setGatewayInConfig(path, url) {
   const cfg = JSON.parse(readFileSync(path, 'utf8'));
@@ -102,9 +124,15 @@ async function main() {
     console.log(gatewayConfig({ ...opt, dbId: '00000000-0000-0000-0000-000000000000' }));
     return;
   }
-  if (!process.env.CLOUDFLARE_API_TOKEN || !process.env.CLOUDFLARE_ACCOUNT_ID) {
-    fail('Add the GitHub secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID first (repository Settings → Secrets and variables → Actions). See README → "Make it a public website".');
+  // Trim stray spaces or line breaks from pasted secrets (Wrangler and the API use them as they are).
+  for (const k of [...REQUIRED_SECRETS, 'JEEA_OWNER_KEY']) if (process.env[k]) process.env[k] = process.env[k].trim();
+  const found = (k) => (process.env[k] ? 'found' : 'MISSING');
+  console.log(`Secrets: CLOUDFLARE_API_TOKEN ${found('CLOUDFLARE_API_TOKEN')}, CLOUDFLARE_ACCOUNT_ID ${found('CLOUDFLARE_ACCOUNT_ID')}, JEEA_OWNER_KEY ${process.env.JEEA_OWNER_KEY ? 'found' : 'not set (no owner sign-in)'}`);
+  const { missing, problems } = checkSecrets(process.env);
+  if (missing.length) {
+    fail(`Missing GitHub secret${missing.length > 1 ? 's' : ''}: ${missing.join(' and ')}. Add ${missing.length > 1 ? 'them' : 'it'} under repository Settings → Secrets and variables → Actions → "Repository secrets" → New repository secret, with the name spelled exactly like this. (Not under "Variables", "Environment secrets" or Dependabot.) See README → "Make it a public website".`);
   }
+  if (problems.length) fail(problems.join('\n  '));
 
   // 1. The accounts database.
   console.log('1/5 Accounts database');
