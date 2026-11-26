@@ -1,22 +1,48 @@
 {
-  "updatedAt": "2026-11-25T22:33:16.145Z",
+  "updatedAt": "2026-11-26T05:05:41.154Z",
   "tasks": {
     "tech-digest": {
       "name": "Daily tech digest",
-      "lastRun": "2026-11-25T03:02:36.270Z",
+      "lastRun": "2026-11-26T05:04:50.445Z",
       "lastStatus": "ok",
       "every": "1d",
       "model": "auto"
     },
     "daily-fact": {
       "name": "Fact of the day",
-      "lastRun": "2026-11-25T03:02:40.344Z",
+      "lastRun": "2026-11-26T05:04:55.201Z",
       "lastStatus": "ok",
       "every": "1d",
       "model": "auto"
     }
   },
   "runs": [
+    {
+      "task": "daily-fact",
+      "name": "Fact of the day",
+      "at": "2026-11-26T05:04:55.201Z",
+      "status": "ok",
+      "model": "jeea-free:openai",
+      "steps": 0,
+      "ms": 45952,
+      "tokensIn": 407,
+      "tokensOut": 63,
+      "summary": "(The agent finished without a written answer.)",
+      "path": "results/daily-fact/2026-11-26T05-04-55Z.md"
+    },
+    {
+      "task": "tech-digest",
+      "name": "Daily tech digest",
+      "at": "2026-11-26T05:04:50.445Z",
+      "status": "ok",
+      "model": "jeea-free:openai",
+      "steps": 0,
+      "ms": 4754,
+      "tokensIn": 387,
+      "tokensOut": 53,
+      "summary": "(The agent finished without a written answer.)",
+      "path": "results/tech-digest/2026-11-26T05-04-50Z.md"
+    },
     {
       "task": "daily-fact",
       "name": "Fact of the day",
