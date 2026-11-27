@@ -1,22 +1,44 @@
 {
-  "updatedAt": "2026-11-27T00:35:40.223Z",
+  "updatedAt": "2026-11-27T09:45:00.970Z",
   "tasks": {
     "tech-digest": {
       "name": "Daily tech digest",
-      "lastRun": "2026-11-26T05:04:50.445Z",
+      "lastRun": "2026-11-27T09:41:10.677Z",
       "lastStatus": "ok",
       "every": "1d",
       "model": "auto"
     },
     "daily-fact": {
       "name": "Fact of the day",
-      "lastRun": "2026-11-26T05:04:55.201Z",
-      "lastStatus": "ok",
+      "lastRun": "2026-11-27T09:42:20.842Z",
+      "lastStatus": "error",
       "every": "1d",
       "model": "auto"
     }
   },
   "runs": [
+    {
+      "task": "daily-fact",
+      "name": "Fact of the day",
+      "at": "2026-11-27T09:42:20.842Z",
+      "status": "error",
+      "ms": 160127,
+      "error": "HTTP 413: {\"status\":413,\"success\":false,\"error\":{\"code\":\"PAYLOAD_TOO_LARGE\",\"message\":\"Prompt too long for the free Classic API: 16,000 characters max (about 4,000 tokens), counting messages and tools. Shorten it, or use long prompts and every model with a Pollinations API key at https://enter.polli",
+      "path": "results/daily-fact/2026-11-27T09-42-20Z.md"
+    },
+    {
+      "task": "tech-digest",
+      "name": "Daily tech digest",
+      "at": "2026-11-27T09:41:10.677Z",
+      "status": "ok",
+      "model": "jeea-free:openai",
+      "steps": 1,
+      "ms": 70162,
+      "tokensIn": 2738,
+      "tokensOut": 2275,
+      "summary": "Plan: I’ll compare the supplied feed with the last digest, then summarize five notable stories and mark any absent from that digest as NEW. I’m retrieving the previous report for the comparison.The prior digest is needed to reliably label n",
+      "path": "results/tech-digest/2026-11-27T09-41-10Z.md"
+    },
     {
       "task": "daily-fact",
       "name": "Fact of the day",
