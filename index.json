@@ -1,22 +1,48 @@
 {
-  "updatedAt": "2026-11-28T02:40:58.886Z",
+  "updatedAt": "2026-11-28T11:46:00.986Z",
   "tasks": {
     "tech-digest": {
       "name": "Daily tech digest",
-      "lastRun": "2026-11-27T09:41:10.677Z",
+      "lastRun": "2026-11-28T11:45:10.224Z",
       "lastStatus": "ok",
       "every": "1d",
       "model": "auto"
     },
     "daily-fact": {
       "name": "Fact of the day",
-      "lastRun": "2026-11-27T09:42:20.842Z",
-      "lastStatus": "error",
+      "lastRun": "2026-11-28T11:45:14.631Z",
+      "lastStatus": "ok",
       "every": "1d",
       "model": "auto"
     }
   },
   "runs": [
+    {
+      "task": "daily-fact",
+      "name": "Fact of the day",
+      "at": "2026-11-28T11:45:14.631Z",
+      "status": "ok",
+      "model": "jeea-free:openai",
+      "steps": 0,
+      "ms": 46352,
+      "tokensIn": 343,
+      "tokensOut": 99,
+      "summary": "Plan: confirm today’s date, find a notable event on this calendar day, then check its Wikipedia article and write a 150 word explanation.I’ll check the current UTC date first to establish the calendar day.I’m unable to complete the research",
+      "path": "results/daily-fact/2026-11-28T11-45-14Z.md"
+    },
+    {
+      "task": "tech-digest",
+      "name": "Daily tech digest",
+      "at": "2026-11-28T11:45:10.224Z",
+      "status": "ok",
+      "model": "jeea-free:openai",
+      "steps": 0,
+      "ms": 4405,
+      "tokensIn": 323,
+      "tokensOut": 32,
+      "summary": "I’ll fetch the current Hacker News RSS feed, then compare its top five stories with the previous digest.",
+      "path": "results/tech-digest/2026-11-28T11-45-10Z.md"
+    },
     {
       "task": "daily-fact",
       "name": "Fact of the day",
